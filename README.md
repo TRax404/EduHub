@@ -1,0 +1,1 @@
+Next need setup moneroting

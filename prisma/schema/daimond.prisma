@@ -1,0 +1,119 @@
+model DiamondTransaction {
+    id String @id @default(cuid())
+
+    studentProfileId String         @map("student_profile_id")
+    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+    amount           Int
+    type             DiamondTxType
+    referenceId      String?        @unique @map("reference_id")
+
+    note      String?
+    createdAt DateTime @default(now()) @map("created_at")
+
+    @@index([studentProfileId])
+    @@index([studentProfileId, type])
+    @@map("diamond_transactions")
+}
+
+enum DiamondTxType {
+    QUIZ_REWARD
+    BADGE_BONUS
+    REFERRAL_BONUS
+    PURCHASE
+    ADMIN_ADJUST
+    STREAK_REWARD
+    FIAT_PURCHASE // Bought diamonds with fiat
+
+    // --- Outflows ---
+    STORE_SPEND // Spent diamonds on virtual items
+    PENALTY // Admin deductions
+}
+
+// ============================================================
+// NEW: BADGE SYSTEM (Event-Driven, Schema badge)
+// ============================================================
+
+model Badge {
+    id           String  @id @default(cuid())
+    name         String  @unique
+    description  String
+    iconUrl      String?
+    rules        Json
+    diamondBonus Int     @default(0) @map("diamond_bonus")
+
+    isActive  Boolean  @default(true) @map("is_active")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt
+
+    userBadges        UserBadge[]
+    badgeRequirements BadgeRequirement[]
+
+    @@map("badges")
+}
+
+model RequirementTemplate {
+    id          String @id @default(cuid())
+    eventType   String @unique @map("event_type")
+    description String
+
+    badgeRequirements BadgeRequirement[]
+
+    @@map("requirement_templates")
+}
+
+model BadgeRequirement {
+    id         String @id @default(cuid())
+    badgeId    String @map("badge_id")
+    templateId String @map("template_id")
+    config     Json
+
+    badge    Badge               @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+    template RequirementTemplate @relation(fields: [templateId], references: [id])
+
+    @@map("badge_requirements")
+}
+
+model UserBadge {
+    id String @id @default(cuid())
+
+    studentProfileId String         @map("student_profile_id")
+    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+    badgeId String @map("badge_id")
+    badge   Badge  @relation(fields: [badgeId], references: [id])
+
+    earnedAt DateTime @default(now()) @map("earned_at")
+
+    @@unique([studentProfileId, badgeId])
+    @@index([studentProfileId])
+    @@map("user_badges")
+}
+
+model UserEventLog {
+    id               String         @id @default(cuid())
+    studentProfileId String         @map("student_profile_id")
+    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+    eventType        String         @map("event_type")
+    metadata         Json           @default("{}")
+
+    occurredAt DateTime @default(now()) @map("occurred_at")
+
+    @@index([studentProfileId, eventType])
+    @@index([studentProfileId, occurredAt])
+    @@map("user_event_log")
+}
+
+// Optimized table to count events without scanning the massive UserEventLog
+model UserProgress {
+    id               String         @id @default(cuid())
+    studentProfileId String         @map("student_profile_id")
+    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+    eventType   String   @map("event_type")
+    count       Int      @default(0)
+    lastUpdated DateTime @default(now()) @updatedAt @map("last_updated")
+
+    @@unique([studentProfileId, eventType])
+    @@index([studentProfileId])
+    @@map("user_progress")
+}

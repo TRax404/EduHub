@@ -1,0 +1,86 @@
+// --- CORE USER MODEL ---
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  password     String? // Hashed
+  status       UserStatus @default(ACTIVE)
+  role         UserRole   @default(STUDENT)
+  tokenVersion Int        @default(0)
+
+  // ───> MOBILE AUTH & CONTACT STACK
+  // phoneNumber   String? @unique
+  // phoneVerified Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // ───> SECURITY & PROTECTION STACK 
+  // Primary relations for auth verification and account safety
+  authSecurity       AuthSecurity?
+  verificationTokens VerificationToken[]
+  passwordHistory    PasswordHistory[]
+  restrictions       UserRestriction[]
+
+  // ───> SESSION & CONNECTIVITY STACK 
+  // Managing active access, real-time presence, and devices
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+  devices       UserDevice[]
+  trustedDevice TrustedDevice?
+  presence      UserPresence?
+
+  // ───>  AUDIT & HISTORY STACK 
+  // Background tracking (usually handled via BullMQ/Queues)
+  loginHistory LoginHistory[]
+  auditLogs    AuditLog[]
+
+  // ───> IDENTITY & ACCOUNT STACK 
+  // User personal details and external account linking
+  profile    Profile?
+  socialAuth Account?
+  setting    UserSettings?
+
+  // for notification
+  sentNotifications     Notification[]          @relation("NotificationActor")
+  receivedNotifications NotificationRecipient[]
+  notification          Notification?           @relation(fields: [notificationId], references: [id])
+  notificationId        String?
+
+  @@index([email])
+  @@index([status])
+}
+
+// --- USER DEVICE & NOTIFICATION MODEL ---
+
+// --- REAL-TIME PRESENCE MODEL ---
+model UserPresence {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  isOnline  Boolean  @default(false)
+  lastSeen  DateTime @default(now())
+  lastLogin DateTime
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  STUDENT // core user
+
+  //--------------------------------------------
+  DEVELOPER // for testing
+  SUPPORTER // for support
+  QUIZER // upload quiz
+  MANAGER // check all upload quiz and verify
+  ADMIN // manage dashboard
+  SUPERADMIN // manage other role 
+  //--------------------------------------------
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  LOCKED
+  DELETED
+}

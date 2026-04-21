@@ -1,0 +1,74 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nest-postgres-db-prod
+    restart: always
+    profiles:
+      - dev
+      - prod
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: nest_db_prod
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis_cache:
+    image: redis:7-alpine
+    profiles:
+      - dev
+      - prod
+    container_name: redis_cache_uillgus_new
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    platform: linux/amd64
+    build:
+      context: .
+    image: softvence/willgusn-server:latest
+    profiles:
+      - dev
+      - prod
+    container_name: willgusn-server
+    restart: always
+    ports:
+      - '9000:9000'
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://myuser:mypassword@db:5432/nest_db_prod
+      # App + BullMQ read redis.url from REDIS_URL (see config.ts). Host/port kept for tools/scripts.
+      REDIS_URL: redis://redis_cache:6379
+      REDIS_HOST: redis_cache
+      REDIS_PORT: 6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis_cache:
+        condition: service_healthy
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  redis_data:

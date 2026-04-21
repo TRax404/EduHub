@@ -1,0 +1,62 @@
+model StudentProfile {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- Identity & Profile ---
+  firstName       String
+  lastName        String?
+  avatarUrl       String?
+  institutionName String?
+  bio             String?
+  referralCode    String  @unique
+
+  // --- Categorization ---
+  // level        StudentLevel? // e.g., School, College, Admission
+  classLevel   ClassLevel? // e.g., SIX, TEN, HSC, HONOURS
+  studentGroup Group? // e.g., Science, Arts, Commerce
+  targetExam   String? // e.g., BUET, Medical, BCS
+
+  // --- Gamification & Economy ---
+  diamonds Int @default(0)
+
+  // --- Global Performance Metrics (Stage 8) ---
+  totalWeightedScore     Float @default(0.0)
+  totalWeightedQuestions Int   @default(0)
+  globalSuccessRate      Float @default(0.0) // Aggregated Success %
+
+  // --- Core Relations ---
+  // attempts        StudentQuizAttempt[]
+  // chapterProgress ChapterProgress[]
+  // solvedQuestions SolvedQuestion[]
+
+  // --- Referral System (Self-referencing) ---
+  referredById String?
+  referredBy   StudentProfile?  @relation("ReferralSystem", fields: [referredById], references: [id])
+  referrals    StudentProfile[] @relation("ReferralSystem")
+
+  // ── NEW: Diamond & Badge relations ──
+  diamondTransactions DiamondTransaction[]
+  userBadges          UserBadge[]
+  eventLogs           UserEventLog[]
+  userProgress        UserProgress[]
+
+  profileId String  @unique
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+enum ClassLevel {
+  SIX
+  SEVEN
+  EIGHT
+  SSC
+  HSC
+  HONOURS
+}
+
+enum Group {
+  SCIENCE
+  ARTS
+  COMMERCE
+  OTHER
+}

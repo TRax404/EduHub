@@ -1,0 +1,60 @@
+// --- SESSION MANAGEMENT ---
+
+model RefreshToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Security & Identity
+  tokenHash String @unique // Hashed version of the token (never store raw)
+  jti       String @unique // JWT ID to prevent Replay Attacks
+
+  // Rotation Tracking
+  rotatedFromId String? // Linked to the previous token in the chain
+  replacedById  String? // Linked to the next token (if rotated)
+
+  // Client Info
+  deviceId  String
+  ipAddress String?
+  userAgent String?
+
+  // Revocation Logic
+  isRevoked    Boolean   @default(false)
+  revokedAt    DateTime?
+  revokeReason String? // e.g., "manual_logout", "compromised"
+
+  // Expiry & Metadata
+  family    String   @default(cuid()) // Groups tokens from the same login event
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([userId, deviceId])
+}
+
+model Session {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Identifiers
+  sid               String  @unique // Public session identifier
+  deviceId          String
+  deviceName        String?
+  deviceFingerprint String? // Hardware-based unique ID
+
+  // Connection Info
+  ipAddress String?
+  userAgent String?
+
+  // Status & Timing
+  isActive   Boolean  @default(true)
+  lastUsedAt DateTime @default(now()) // For "Last Active" tracking
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([userId, isActive])
+  @@index([sid])
+}

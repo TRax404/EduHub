@@ -1,0 +1,23 @@
+model UserSettings {
+    userId String @id
+    user   User   @relation(fields: [userId], references: [id])
+
+    pushEnabled Boolean                 @default(true)
+    preference  NotificationPreference?
+    language    Language                @default(ENGLISH)
+    theme       Themes                  @default(DARK)
+
+    socialAccounts UserSocialAccount[]
+}
+
+enum Themes {
+    DARK
+    MODERN_DARK
+    LIGHT
+    PLATFORM_RECOMMENDED
+}
+
+enum Language {
+    BANGLA
+    ENGLISH
+}

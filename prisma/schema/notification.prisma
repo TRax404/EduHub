@@ -1,0 +1,90 @@
+model Notification {
+    id        String                @id @default(uuid())
+    actorType NotificationActorType @default(SYSTEM)
+    actorId   String?
+    senderId  String?
+
+    title    String
+    body     String
+    type     NotificationType
+    priority NotificationPriority @default(MEDIUM)
+
+    resourceType NotificationResourceType?
+    resourceId   String?
+
+    isGlobal Boolean @default(false)
+
+    // JSON metadata deep-linking for (e.g., { "url": "/settings", "img": "icon.png" })
+    metadata Json?
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    expiresAt DateTime?
+
+    // Relations
+    actor      User?                   @relation("NotificationActor", fields: [actorId], references: [id])
+    recipients NotificationRecipient[]
+    users      User[]
+
+    @@index([actorId])
+    @@index([createdAt])
+}
+
+model NotificationRecipient {
+    userId         String
+    notificationId String
+
+    // Delivery Status for different channels
+    isRead Boolean   @default(false)
+    readAt DateTime?
+
+    isPushSent   Boolean @default(false) // Mobile/Web Push status
+    isSocialSent Boolean @default(false) // WhatsApp/Messenger status
+
+    deliveryError String? // if fail (e.g., "Invalid Token")
+
+    // Relations
+    user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+    @@id([userId, notificationId])
+    @@index([userId, isRead])
+    @@map("notification_recipients")
+}
+
+enum NotificationType {
+    INFO
+    WARNING
+    ALERT
+    MESSAGE
+    TASK
+    SYSTEM
+    PROMOTION
+}
+
+enum NotificationResourceType {
+    LOGIN_SUCCESSFUL
+    PASSWORD_RESET_SUCCESSFUL
+    SUBSCRIPTION_UPDATE
+}
+
+enum NotificationActorType {
+    USER
+    SYSTEM
+    DEVICE
+}
+
+enum NotificationPriority {
+    CRITICAL
+    HIGH
+    MEDIUM
+    LOW
+}
+
+enum DeliveryStatus {
+    NOT_SENT
+    PENDING
+    SENT
+    DELIVERED
+    FAILED
+}

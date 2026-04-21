@@ -1,0 +1,106 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: eduDb
+    restart: always
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: Eddb
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  redis_cache:
+    image: redis:7-alpine
+    container_name: redis_DB
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - app_network
+
+  loki:
+    image: grafana/loki:latest
+    restart: always
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - app_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
+      - prometheus
+    networks:
+      - app_network
+
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: edu-api-dev
+  #   ports:
+  #     - "9000:9000"
+  #   env_file:
+
+  #     - .env
+  #   environment:
+  #     - NODE_ENV=development
+  #     - DATABASE_URL=postgresql://myuser:mypassword@db:5432/Eddb
+  #     - REDIS_URL=redis://redis_cache:6379
+  #     - REDIS_HOST=redis_cache
+  #     - REDIS_PORT=6379
+  #     - LOKI_URL=http://loki:3100
+  #     - DOCKER_CONTAINER=true
+  #   depends_on:
+  #     - db
+  #     - redis_cache
+  #   networks:
+  #     - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:

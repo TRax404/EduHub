@@ -1,0 +1,14 @@
+// DeadLetterJob table
+model DeadLetterJob {
+    id            String    @id @default(cuid())
+    originalQueue String
+    originalJobId String?
+    jobName       String
+    payload       Json
+    errorMessage  String
+    errorStack    String?
+    attemptsMade  Int
+    exhaustedAt   DateTime
+    replayedAt    DateTime?
+    createdAt     DateTime  @default(now())
+}

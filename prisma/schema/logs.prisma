@@ -1,0 +1,122 @@
+// --- LOGGING, AUDITS & RESTRICTIONS ---
+
+model AuditLog {
+  id    String @id @default(uuid())
+  jobId String @unique // for idempotency
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Operation Details
+  action   String // e.g., "PASSWORD_CHANGE", "SETTINGS_UPDATE"
+  status   AuditStatus
+  severity AuditSeverity
+
+  // Contextual Data
+  ipAddress     String?
+  userAgent     String?
+  metadata      Json?
+  // Resource Tracking
+  resource      String?
+  resourceId    String?
+  correlationId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, action])
+}
+
+model PasswordHistory {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Security Logic
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserRestriction {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Block Details
+  type   RestrictionType
+  status RestrictionStatus @default(ACTIVE)
+  reason String
+
+  restrictedUntil DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type, status])
+}
+
+model LoginHistory {
+  id    String @id @default(uuid())
+  jobId String @unique // for idempotency
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Session Timing
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  duration  Int?
+
+  // Environment Details
+  ipAddress    String?
+  device       String?
+  geoLocation  String?
+  isSuspicious Boolean @default(false)
+
+  // Auth Context
+  loginMethod   String?
+  mfaUsed       Boolean @default(false)
+  failureReason String?
+
+  @@index([userId])
+}
+
+// --- ENUMS ---
+
+enum RestrictionType {
+  FULL_BAN
+  LOGIN_BLOCK
+  POST_BLOCK
+  COMMENT_BLOCK
+  CHAT_MUTE
+  API_BLOCK
+  DIAMOND_BLOCK
+}
+
+enum RestrictionStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum LoginMethod {
+  EMAIL_PASSWORD
+  GOOGLE
+  GITHUB
+  OTP
+}
+
+enum AuditSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+  PENDING
+}

@@ -1,0 +1,35 @@
+model UserDevice {
+    id     String @id @default(cuid())
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // Identification & Push
+    deviceId String // Vendor or hardware ID
+    fcmToken String? // Firebase Cloud Messaging Token
+
+    // Device Metadata
+    platform   String? // iOS, Android, or Web
+    model      String? // e.g., "iPhone 13"
+    osVersion  String? // e.g., "15.4"
+    appVersion String? // e.g., "1.0.0"
+    language   String? @default("en")
+
+    // Status & Timing
+    isActive   Boolean  @default(true)
+    lastUsedAt DateTime @default(now())
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    @@unique([userId, deviceId])
+    @@index([userId])
+    @@index([fcmToken])
+}
+
+// enum DevicePlatform {
+//     ANDROID
+//     IOS
+//     WEB
+//     WINDOWS
+//     MACOS
+//     LINUX
+// }

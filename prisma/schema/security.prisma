@@ -1,0 +1,74 @@
+// --- AUTH SECURITY & PROTECTION ---
+
+model AuthSecurity {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Brute Force Protection
+  failedAttempts Int       @default(0) // Count of consecutive failed logins
+  lastFailedAt   DateTime? // Timestamp of the last failed attempt
+  lockExpiresAt  DateTime? // Account lockout duration (if now < this, block login)
+
+  // Multi-Factor Authentication (MFA)
+  mfaEnabled    Boolean    @default(false)
+  mfaMethod     MFAMethod?
+  mfaSecret     String? // Encrypted! (TOTP secret)
+  recoveryCodes String[] // Hashed backup codes for account recovery
+
+  // Credential Metadata
+  hasPassword Boolean @default(true) // False if user only uses Social Login (OAuth)
+
+  // Tracking for Security Audits
+  lastPasswordChange DateTime?
+  lastLoginIp        String?
+  lastLoginAt        DateTime?
+}
+
+model VerificationToken {
+  id         String    @id @default(cuid())
+  identifier String // Email, phone, or userId depending on the flow
+  token      String    @unique // Hashed OTP or verification link
+  type       OTPType // e.g., EMAIL_VERIFICATION, PASSWORD_RESET, MFA
+  usedAt     DateTime?
+  attempts   Int       @default(0) // Prevents brute-forcing the OTP code
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([identifier, type])
+  @@index([identifier])
+}
+
+model TrustedDevice {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Device Identification
+  deviceId    String
+  deviceName  String?
+  fingerprint String? // Hardware/Browser fingerprint to verify identity
+  trustedAt   DateTime @default(now())
+  expiresAt   DateTime // Trust period (e.g., 30 days)
+
+  @@unique([userId, deviceId])
+}
+
+enum OTPType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  MFA_SETUP
+  LOGIN_OTP
+  PHONE_VERIFY
+}
+
+enum MFAMethod {
+  TOTP
+  SMS
+  EMAIL
+  WEBAUTHN
+  BACKUP_CODE
+}

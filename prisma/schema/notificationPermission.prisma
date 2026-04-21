@@ -1,0 +1,20 @@
+model NotificationPreference {
+    id        String @id @default(uuid())
+    settingId String @unique
+
+    // 
+    inApp     Boolean @default(true)
+    push      Boolean @default(true)
+    whatsapp  Boolean @default(false)
+    messenger Boolean @default(false)
+
+    // (Granular Control)
+    systemAlerts Boolean @default(true)
+    payment      Boolean @default(true)
+    marketing    Boolean @default(true)
+    security     Boolean @default(true)
+
+    setting UserSettings @relation(fields: [settingId], references: [userId], onDelete: Cascade)
+
+    @@map("notification_preferences")
+}
