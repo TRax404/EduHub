@@ -1,119 +1,106 @@
+// ============================================================
+//  DIAMOND WALLET
+// ============================================================
+
+model DiamondWallet {
+    id String @id @default(cuid())
+
+    studentProfileId String         @unique
+    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+    balance     Int @default(0)
+    totalEarned Int @default(0)
+    totalSpent  Int @default(0)
+
+    // Optimistic locking — increment on every transaction
+    // to prevent race conditions
+    version Int @default(1)
+
+    lastTransactionAt DateTime?
+
+    transactions DiamondTransaction[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("diamond_wallets")
+}
+
+// ============================================================
+//  DIAMOND TRANSACTION
+// ============================================================
+
 model DiamondTransaction {
     id String @id @default(cuid())
 
-    studentProfileId String         @map("student_profile_id")
-    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-    amount           Int
-    type             DiamondTxType
-    referenceId      String?        @unique @map("reference_id")
+    walletId String
+    wallet   DiamondWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
-    note      String?
-    createdAt DateTime @default(now()) @map("created_at")
+    // Positive = earn, Negative = spend
+    amount Int
 
-    @@index([studentProfileId])
-    @@index([studentProfileId, type])
+    // e.g. "QUIZ_REWARD", "STREAK_REWARD", "STORE_SPEND", "ADMIN_ADJUST"
+    eventType String
+
+    // e.g. "QUIZ", "EXAM", "REFERRAL", "ADMIN", "STORE"
+    source String?
+
+    // e.g. "quiz", "badge", "promo", "store"
+    contextType String?
+
+    // exact reference ID (quizId, promoCodeId, badgeId, etc.)
+    contextId String?
+
+    // Idempotency key — prevents duplicate transactions
+    referenceId String @unique
+
+    // Flexible metadata — store anything extra
+    // e.g. { "quizTitle": "...", "score": 95, "bonusMultiplier": 1.5 }
+    meta Json?
+
+    note String?
+
+    // Link to the event that triggered this transaction
+    eventLogId String?
+    eventLog   UserEventLog? @relation(fields: [eventLogId], references: [id])
+
+    createdAt DateTime @default(now())
+
+    @@index([walletId])
+    @@index([eventType])
+    @@index([source])
+    @@index([contextType])
+    @@index([createdAt])
     @@map("diamond_transactions")
 }
 
-enum DiamondTxType {
-    QUIZ_REWARD
-    BADGE_BONUS
-    REFERRAL_BONUS
-    PURCHASE
-    ADMIN_ADJUST
-    STREAK_REWARD
-    FIAT_PURCHASE // Bought diamonds with fiat
-
-    // --- Outflows ---
-    STORE_SPEND // Spent diamonds on virtual items
-    PENALTY // Admin deductions
-}
-
 // ============================================================
-// NEW: BADGE SYSTEM (Event-Driven, Schema badge)
+//  USER EVENT LOG
 // ============================================================
-
-model Badge {
-    id           String  @id @default(cuid())
-    name         String  @unique
-    description  String
-    iconUrl      String?
-    rules        Json
-    diamondBonus Int     @default(0) @map("diamond_bonus")
-
-    isActive  Boolean  @default(true) @map("is_active")
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt
-
-    userBadges        UserBadge[]
-    badgeRequirements BadgeRequirement[]
-
-    @@map("badges")
-}
-
-model RequirementTemplate {
-    id          String @id @default(cuid())
-    eventType   String @unique @map("event_type")
-    description String
-
-    badgeRequirements BadgeRequirement[]
-
-    @@map("requirement_templates")
-}
-
-model BadgeRequirement {
-    id         String @id @default(cuid())
-    badgeId    String @map("badge_id")
-    templateId String @map("template_id")
-    config     Json
-
-    badge    Badge               @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-    template RequirementTemplate @relation(fields: [templateId], references: [id])
-
-    @@map("badge_requirements")
-}
-
-model UserBadge {
-    id String @id @default(cuid())
-
-    studentProfileId String         @map("student_profile_id")
-    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-
-    badgeId String @map("badge_id")
-    badge   Badge  @relation(fields: [badgeId], references: [id])
-
-    earnedAt DateTime @default(now()) @map("earned_at")
-
-    @@unique([studentProfileId, badgeId])
-    @@index([studentProfileId])
-    @@map("user_badges")
-}
 
 model UserEventLog {
-    id               String         @id @default(cuid())
-    studentProfileId String         @map("student_profile_id")
-    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-    eventType        String         @map("event_type")
-    metadata         Json           @default("{}")
+    id String @id @default(cuid())
 
-    occurredAt DateTime @default(now()) @map("occurred_at")
-
-    @@index([studentProfileId, eventType])
-    @@index([studentProfileId, occurredAt])
-    @@map("user_event_log")
-}
-
-// Optimized table to count events without scanning the massive UserEventLog
-model UserProgress {
-    id               String         @id @default(cuid())
-    studentProfileId String         @map("student_profile_id")
+    studentProfileId String
     studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
 
-    eventType   String   @map("event_type")
-    count       Int      @default(0)
-    lastUpdated DateTime @default(now()) @updatedAt @map("last_updated")
+    // e.g. "QUIZ_COMPLETED", "EXAM_FINISHED", "REFERRAL_USED", "STREAK_ACHIEVED"
+    eventType String
 
-    @@unique([studentProfileId, eventType])
+    // exact reference (quizId, examId, etc.)
+    contextId String?
+
+    // Flexible extra data
+    // e.g. { "score": 88, "totalQuestions": 20, "timeTaken": 300 }
+    meta Json?
+
+    createdAt DateTime @default(now())
+
+    // Transactions triggered by this event
+    diamondTransactions DiamondTransaction[]
+
     @@index([studentProfileId])
-    @@map("user_progress")
+    @@index([eventType])
+    @@index([createdAt])
+    @@map("user_event_logs")
 }

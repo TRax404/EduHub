@@ -1,0 +1,96 @@
+// ============================================================
+//  BADGE
+// ============================================================
+
+model Badge {
+    id          String  @id @default(cuid())
+    name        String
+    description String?
+    iconUrl     String?
+
+    isActive Boolean     @default(true)
+    rarity   BadgeRarity @default(BRONZE)
+
+    diamondReward Int @default(0)
+
+    rules BadgeRule[]
+    users UserBadge[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+//  BADGE RULE
+// ============================================================
+
+model BadgeRule {
+    id String @id @default(cuid())
+
+    badgeId String
+    badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+    eventType BadgeEventType
+
+    // Can disable a single rule without touching the badge
+    isActive Boolean @default(true)
+
+    // Flexible condition storage
+    // Examples:
+    //   QUIZ_COMPLETED  → { "minScore": 90, "subject": "math" }
+    //   STREAK          → { "streakDays": 7 }
+    //   TOTAL_SCORE     → { "minTotalScore": 5000 }
+    //   REFERRAL        → { "minReferrals": 5 }
+    condition Json
+
+    @@index([badgeId])
+    @@index([eventType])
+    @@index([isActive])
+}
+
+// ============================================================
+//  USER BADGE  (junction — student ↔ badge)
+// ============================================================
+
+model UserBadge {
+    id String @id @default(cuid())
+
+    studentProfileId String
+    studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+    badgeId String
+    badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+    unlockedAt DateTime @default(now())
+
+    eventType BadgeEventType?
+
+    contextId String?
+
+    diamondAwarded Int @default(0)
+
+    meta Json?
+
+    @@unique([studentProfileId, badgeId])
+    @@index([studentProfileId])
+    @@index([badgeId])
+}
+
+// ============================================================
+//  ENUMS
+// ============================================================
+
+enum BadgeEventType {
+    QUIZ_COMPLETED
+    EXAM_COMPLETED
+    STREAK
+    REFERRAL
+    TOTAL_SCORE
+}
+
+enum BadgeRarity {
+    BRONZE
+    SILVER
+    GOLD
+    LEGENDARY
+}

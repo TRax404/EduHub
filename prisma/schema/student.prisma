@@ -18,7 +18,10 @@ model StudentProfile {
   targetExam   String? // e.g., BUET, Medical, BCS
 
   // --- Gamification & Economy ---
-  diamonds Int @default(0)
+
+  diamondWallet DiamondWallet?
+  userBadges    UserBadge[]
+  eventLogs     UserEventLog[]
 
   // --- Global Performance Metrics (Stage 8) ---
   totalWeightedScore     Float @default(0.0)
@@ -36,10 +39,6 @@ model StudentProfile {
   referrals    StudentProfile[] @relation("ReferralSystem")
 
   // ── NEW: Diamond & Badge relations ──
-  diamondTransactions DiamondTransaction[]
-  userBadges          UserBadge[]
-  eventLogs           UserEventLog[]
-  userProgress        UserProgress[]
 
   profileId String  @unique
   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
