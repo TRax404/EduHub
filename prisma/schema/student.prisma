@@ -1,9 +1,54 @@
+// model StudentProfile {
+//   id        String   @id @default(cuid())
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   // --- Identity & Profile ---
+//   firstName       String
+//   lastName        String?
+//   avatarUrl       String?
+//   institutionName String?
+//   bio             String?
+//   referralCode    String  @unique
+
+//   // --- Categorization ---
+//   // level        StudentLevel? // e.g., School, College, Admission
+//   classLevel   ClassLevel? // e.g., SIX, TEN, HSC, HONOURS
+//   studentGroup Group? // e.g., Science, Arts, Commerce
+//   targetExam   String? // e.g., BUET, Medical, BCS
+
+//   // --- Gamification & Economy ---
+
+//   diamondWallet DiamondWallet?
+//   userBadges    UserBadge[]
+//   eventLogs     UserEventLog[]
+
+//   // --- Global Performance Metrics (Stage 8) ---
+//   totalWeightedScore     Float @default(0.0)
+//   totalWeightedQuestions Int   @default(0)
+//   globalSuccessRate      Float @default(0.0) // Aggregated Success %
+
+//   // --- Core Relations ---
+//   // attempts        StudentQuizAttempt[]
+//   // chapterProgress ChapterProgress[]
+//   // solvedQuestions SolvedQuestion[]
+
+//   // --- Referral System (Self-referencing) ---
+//   referredById String?
+//   referredBy   StudentProfile?  @relation("ReferralSystem", fields: [referredById], references: [id])
+//   referrals    StudentProfile[] @relation("ReferralSystem")
+
+//   // ── NEW: Diamond & Badge relations ──
+
+//   profileId String  @unique
+//   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+// }
+
 model StudentProfile {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // --- Identity & Profile ---
   firstName       String
   lastName        String?
   avatarUrl       String?
@@ -11,37 +56,36 @@ model StudentProfile {
   bio             String?
   referralCode    String  @unique
 
-  // --- Categorization ---
-  // level        StudentLevel? // e.g., School, College, Admission
-  classLevel   ClassLevel? // e.g., SIX, TEN, HSC, HONOURS
-  studentGroup Group? // e.g., Science, Arts, Commerce
-  targetExam   String? // e.g., BUET, Medical, BCS
+  classLevel   ClassLevel?
+  studentGroup Group?
+  targetExam   String?
 
-  // --- Gamification & Economy ---
-
+  // Existing Gamification
   diamondWallet DiamondWallet?
   userBadges    UserBadge[]
   eventLogs     UserEventLog[]
 
-  // --- Global Performance Metrics (Stage 8) ---
+  // Existing Performance
   totalWeightedScore     Float @default(0.0)
   totalWeightedQuestions Int   @default(0)
-  globalSuccessRate      Float @default(0.0) // Aggregated Success %
+  globalSuccessRate      Float @default(0.0)
 
-  // --- Core Relations ---
-  // attempts        StudentQuizAttempt[]
-  // chapterProgress ChapterProgress[]
-  // solvedQuestions SolvedQuestion[]
-
-  // --- Referral System (Self-referencing) ---
+  // Existing Referral
   referredById String?
-  referredBy   StudentProfile?  @relation("ReferralSystem", fields: [referredById], references: [id])
+  referredBy   StudentProfile?  @relation("ReferralSystem", fields: [referredById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   referrals    StudentProfile[] @relation("ReferralSystem")
 
-  // ── NEW: Diamond & Badge relations ──
-
+  // Auth layer
   profileId String  @unique
   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  // ── NEW relations ──
+  subscriptions  StudentSubscription[]
+  progress       StudentProgress[]
+  diamondUnlocks DiamondUnlock[] // diamond দিয়ে কী unlock করেছে
+  adminGrants    AdminGrant[] // admin যা manually দিয়েছে
+  couponUsages   CouponUsage[] // কোন coupon use করেছে
+  payments       PaymentTransaction[]
 }
 
 enum ClassLevel {
