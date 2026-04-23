@@ -1,0 +1,60 @@
+// ============================================================
+// FEATURE ENGINE
+// ============================================================
+
+model Feature {
+    id          String        @id @default(cuid())
+    name        String        @unique // BOOK_QUIZ, AI_QUIZ, PREV_EXAM, ADMIN_EXAM
+    label       String // student কে দেখানো নাম
+    description String?
+    valueType   ValueType // BOOLEAN বা NUMBER
+    status      ContentStatus @default(TEST) // feature নিজেও TEST/BETA/PUBLISH হতে পারে
+    isActive    Boolean       @default(true)
+
+    // Diamond দিয়ে এই feature unlock করা যাবে কিনা
+    // null মানে যাবে না
+    diamondUnlockCost Int?
+
+    planConfigs       PlanFeatureConfig[]
+    categoryOverrides CategoryFeatureOverride[]
+    diamondUnlocks    DiamondUnlock[]
+    adminGrants       AdminGrant[]
+}
+
+// Plan এর default feature config
+model PlanFeatureConfig {
+    id        String @id @default(cuid())
+    planId    String
+    featureId String
+
+    boolValue      Boolean? // valueType = BOOLEAN
+    numValue       Int? // valueType = NUMBER (-1 = unlimited)
+    allowedItemIds String[] // admin যে specific book/item গুলো allow করেছে
+
+    status ContentStatus @default(PUBLISH) // এই specific config টার status
+
+    plan    SubscriptionPlan @relation(fields: [planId], references: [id])
+    feature Feature          @relation(fields: [featureId], references: [id])
+
+    @@unique([planId, featureId])
+}
+
+// Category-specific override
+// BUET + FREE + BOOK_QUIZ = 5 books (default 1 এর বদলে)
+model CategoryFeatureOverride {
+    id         String   @id @default(cuid())
+    categoryId String
+    featureId  String
+    planTier   PlanTier
+
+    boolValue      Boolean?
+    numValue       Int?
+    allowedItemIds String[] // এই category তে specifically কোন items
+
+    status ContentStatus @default(PUBLISH)
+
+    category Category @relation(fields: [categoryId], references: [id])
+    feature  Feature  @relation(fields: [featureId], references: [id])
+
+    @@unique([categoryId, featureId, planTier])
+}

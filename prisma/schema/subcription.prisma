@@ -1,0 +1,337 @@
+// ============================================================
+// NOTE: Profile model আপনার existing auth layer
+// এটা touch করা হয়নি — শুধু relation রাখা হয়েছে
+// ============================================================
+
+// ============================================================
+// STUDENT PROFILE (existing — minor updates only)
+// ============================================================
+
+// ============================================================
+// CATEGORY
+// ============================================================
+
+// ============================================================
+// SUBSCRIPTION PLAN
+// ============================================================
+
+model SubscriptionPlan {
+    id           String   @id @default(cuid())
+    name         String
+    description  String?
+    price        Float    @default(0)
+    durationDays Int      @default(365)
+    tier         PlanTier @default(FREE)
+
+    // FREE → MID → PRO upgrade path
+    upgradeFromTier PlanTier?
+
+    categoryPlans CategoryPlan[]
+    features      PlanFeatureConfig[]
+    subscriptions StudentSubscription[]
+    coupons       CouponPlan[] // কোন coupon এই plan এ apply হয়
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// STUDENT SUBSCRIPTION
+// ============================================================
+
+model StudentSubscription {
+    id           String             @id @default(cuid())
+    studentId    String
+    planId       String
+    status       SubscriptionStatus @default(PENDING)
+    startDate    DateTime           @default(now())
+    endDate      DateTime
+    academicYear Int // application layer থেকে inject
+
+    // Pause support
+    pausedAt  DateTime?
+    pauseDays Int       @default(0)
+
+    student    StudentProfile                @relation(fields: [studentId], references: [id])
+    plan       SubscriptionPlan              @relation(fields: [planId], references: [id])
+    categories StudentSubscriptionCategory[]
+    payment    PaymentTransaction?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([studentId])
+    @@index([planId])
+    @@index([status])
+}
+
+// Bundle: একটা subscription এ অনেক category
+model StudentSubscriptionCategory {
+    id             String @id @default(cuid())
+    subscriptionId String
+    categoryId     String
+
+    // Individual category cancel support
+    status      SubscriptionStatus @default(ACTIVE)
+    cancelledAt DateTime?
+
+    subscription StudentSubscription @relation(fields: [subscriptionId], references: [id])
+    category     Category            @relation(fields: [categoryId], references: [id])
+
+    @@unique([subscriptionId, categoryId])
+}
+
+// ============================================================
+// PROGRESS (subscription থেকে সম্পূর্ণ আলাদা)
+// ============================================================
+
+model StudentProgress {
+    id          String      @id @default(cuid())
+    studentId   String
+    contentId   String
+    contentType ContentType
+
+    score        Float?
+    attempts     Int       @default(0)
+    lastPageRead Int?
+    completedAt  DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    student StudentProfile @relation(fields: [studentId], references: [id])
+
+    @@unique([studentId, contentId, contentType])
+    @@index([studentId])
+}
+
+// ============================================================
+// DIAMOND UNLOCK (existing wallet এর সাথে connected)
+// ============================================================
+
+model DiamondUnlock {
+    id        String @id @default(cuid())
+    studentId String
+
+    // Category বা Feature — যেকোনো একটা
+    categoryId String?
+    featureId  String?
+
+    diamondSpent Int
+    unlockedAt   DateTime @default(now())
+
+    // Expiry — null মানে permanent
+    expiresAt DateTime?
+
+    student  StudentProfile @relation(fields: [studentId], references: [id])
+    category Category?      @relation(fields: [categoryId], references: [id])
+    feature  Feature?       @relation(fields: [featureId], references: [id])
+
+    // Diamond transaction এর সাথে link
+    // existing DiamondTransaction model এ referenceId দিয়ে track হবে
+    transactionReferenceId String @unique
+
+    @@index([studentId])
+}
+
+// ============================================================
+// ADMIN GRANT (manual giveaway)
+// ============================================================
+
+model AdminGrant {
+    id        String @id @default(cuid())
+    studentId String
+
+    // Category বা Feature — যেকোনো একটা বা দুটোই
+    categoryId String?
+    featureId  String?
+    planTier   PlanTier? // কোন tier level এর access
+
+    reason    String? // কেন দেওয়া হয়েছে (scholarship, complaint, etc.)
+    grantedBy String // Admin এর id
+
+    startDate DateTime  @default(now())
+    expiresAt DateTime? // null মানে permanent
+
+    isActive Boolean @default(true)
+
+    student  StudentProfile @relation(fields: [studentId], references: [id])
+    category Category?      @relation(fields: [categoryId], references: [id])
+    feature  Feature?       @relation(fields: [featureId], references: [id])
+
+    createdAt DateTime @default(now())
+
+    @@index([studentId])
+    @@index([isActive])
+}
+
+// ============================================================
+// COUPON SYSTEM
+// ============================================================
+
+model Coupon {
+    id          String  @id @default(cuid())
+    code        String  @unique
+    description String?
+
+    discountType  DiscountType // PERCENTAGE বা FIXED
+    discountValue Float // 10 মানে 10% বা ১০০ টাকা
+
+    // Usage limits
+    maxUsageCount Int? // null = unlimited
+    usedCount     Int  @default(0)
+    maxPerStudent Int  @default(1) // একজন কতবার use করতে পারবে
+
+    // Validity
+    startDate DateTime
+    expiresAt DateTime
+
+    // Minimum purchase requirement
+    minPurchaseAmount Float @default(0)
+
+    isActive Boolean @default(true)
+
+    // Scope — কোন plan বা category তে apply হবে
+    // empty মানে সব জায়গায়
+    applicablePlans      CouponPlan[]
+    applicableCategories CouponCategory[]
+    usages               CouponUsage[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// Coupon ↔ Plan scope
+model CouponPlan {
+    couponId String
+    planId   String
+    coupon   Coupon           @relation(fields: [couponId], references: [id])
+    plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+
+    @@id([couponId, planId])
+}
+
+// Coupon ↔ Category scope
+model CouponCategory {
+    couponId   String
+    categoryId String
+    coupon     Coupon   @relation(fields: [couponId], references: [id])
+    category   Category @relation(fields: [categoryId], references: [id])
+
+    @@id([couponId, categoryId])
+}
+
+// Coupon usage record
+model CouponUsage {
+    id        String   @id @default(cuid())
+    couponId  String
+    studentId String
+    usedAt    DateTime @default(now())
+
+    // কত টাকা discount হয়েছে
+    discountAmount Float
+
+    coupon  Coupon         @relation(fields: [couponId], references: [id])
+    student StudentProfile @relation(fields: [studentId], references: [id])
+
+    @@unique([couponId, studentId]) // একজন একবারই use করতে পারবে (maxPerStudent=1 হলে)
+    @@index([studentId])
+}
+
+// ============================================================
+// PAYMENT TRANSACTION
+// ============================================================
+
+model PaymentTransaction {
+    id             String  @id @default(cuid())
+    studentId      String
+    subscriptionId String? @unique
+
+    amount         Float
+    discountAmount Float @default(0)
+    finalAmount    Float // amount - discountAmount
+
+    gateway      PaymentGateway // BKASH, NAGAD, SSLCOMMERZ, CARD
+    gatewayTxnId String?        @unique // gateway এর transaction id
+    status       PaymentStatus  @default(PENDING)
+
+    // Coupon যদি use হয়
+    couponId String?
+
+    failureReason String?
+
+    student      StudentProfile       @relation(fields: [studentId], references: [id])
+    subscription StudentSubscription? @relation(fields: [subscriptionId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([studentId])
+    @@index([status])
+}
+
+// ============================================================
+// EXISTING DIAMOND MODELS (unchanged)
+// ============================================================
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum PlanTier {
+    FREE
+    MID
+    PRO
+}
+
+enum SubscriptionStatus {
+    PENDING // payment হয়নি এখনো
+    ACTIVE
+    PAUSED
+    EXPIRED
+    CANCELLED
+}
+
+enum CategoryType {
+    ACADEMIC
+    ADMISSION
+    JOB_PREP
+    SKILLS
+}
+
+enum ContentStatus {
+    TEST
+    BETA
+    PUBLISH
+}
+
+enum ValueType {
+    BOOLEAN
+    NUMBER
+}
+
+enum ContentType {
+    BOOK
+    CHAPTER
+    QUIZ
+    VIDEO
+}
+
+enum DiscountType {
+    PERCENTAGE
+    FIXED
+}
+
+enum PaymentGateway {
+    BKASH
+    NAGAD
+    SSLCOMMERZ
+    CARD
+}
+
+enum PaymentStatus {
+    PENDING
+    SUCCESS
+    FAILED
+    REFUNDED
+}
