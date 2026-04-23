@@ -5,6 +5,8 @@ import { AppService } from './app.service';
 import { ConfigurationModule } from './config/config.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
+import { StudentCategoryModule } from './modules/mainFeatures/studentCategory/student-category.module';
+import { CategoryPlanModule } from './modules/mainFeatures/categoryPlan/category-plan.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AtStrategy } from './core/jwt/strategies/at.strategy';
 import { RedisModule } from './common/redis/redis.module';
@@ -27,6 +29,8 @@ import { MetricsController } from './common/logger/metrics.controller';
     ConfigurationModule,
     AuthModule,
     UserModule,
+    StudentCategoryModule,
+    CategoryPlanModule,
     PrismaModule,
     RedisModule,
     MailModule,
