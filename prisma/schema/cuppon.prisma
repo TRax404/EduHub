@@ -1,0 +1,77 @@
+model Coupon {
+    id          String  @id @default(cuid())
+    code        String  @unique
+    description String?
+
+    discountType  DiscountType // PERCENTAGE বা FIXED
+    discountValue Float // 10 মানে 10% বা ১০০ টাকা
+
+    // Usage limits
+    maxUsageCount Int? // null = unlimited
+    usedCount     Int  @default(0)
+    maxPerStudent Int  @default(1) // একজন কতবার use করতে পারবে
+
+    // Validity
+    startDate DateTime
+    expiresAt DateTime
+
+    // Minimum purchase requirement
+    minPurchaseAmount Float @default(0)
+
+    isActive Boolean @default(true)
+
+    // Scope — কোন plan বা category তে apply হবে
+    // empty মানে সব জায়গায়
+    applicablePlans      CouponPlan[]
+    applicableCategories CouponCategory[]
+    usages               CouponUsage[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+enum DiscountType {
+    PERCENTAGE
+    FIXED
+}
+
+// ============================================================
+// COUPON SYSTEM
+// ============================================================
+
+// Coupon ↔ Plan scope
+model CouponPlan {
+    couponId String
+    planId   String
+    coupon   Coupon           @relation(fields: [couponId], references: [id])
+    plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+
+    @@id([couponId, planId])
+}
+
+// Coupon ↔ Category scope
+model CouponCategory {
+    couponId   String
+    categoryId String
+    coupon     Coupon   @relation(fields: [couponId], references: [id])
+    category   Category @relation(fields: [categoryId], references: [id])
+
+    @@id([couponId, categoryId])
+}
+
+// Coupon usage record
+model CouponUsage {
+    id        String   @id @default(cuid())
+    couponId  String
+    studentId String
+    usedAt    DateTime @default(now())
+
+    // কত টাকা discount হয়েছে
+    discountAmount Float
+
+    coupon  Coupon         @relation(fields: [couponId], references: [id])
+    student StudentProfile @relation(fields: [studentId], references: [id])
+
+    @@unique([couponId, studentId])
+    @@index([studentId])
+}

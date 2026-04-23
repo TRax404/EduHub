@@ -96,3 +96,29 @@ model UserEventLog {
     @@index([createdAt])
     @@map("user_event_logs")
 }
+
+// ============================================================
+// DIAMOND UNLOCK
+// ============================================================
+
+model DiamondUnlock {
+    id        String @id @default(cuid())
+    studentId String
+
+    // Category বা Feature — যেকোনো একটা
+    categoryId String?
+    featureId  String?
+
+    diamondSpent Int
+    unlockedAt   DateTime @default(now())
+
+    // Expiry — null মানে permanent
+    expiresAt DateTime?
+
+    student                StudentProfile @relation(fields: [studentId], references: [id])
+    category               Category?      @relation(fields: [categoryId], references: [id])
+    feature                Feature?       @relation(fields: [featureId], references: [id])
+    transactionReferenceId String         @unique
+
+    @@index([studentId])
+}
