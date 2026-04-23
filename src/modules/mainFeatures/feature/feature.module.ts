@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { FeatureController } from './controller/feature.controller';
+import { FeatureService } from './service/feature.service';
+import { PrismaModule } from '../../../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [FeatureController],
+  providers: [FeatureService],
+  exports: [FeatureService],
+})
+export class FeatureModule {}
