@@ -10,6 +10,7 @@ import { GoogleStrategy } from '../../core/jwt/strategies/google.strategy';
 import { AtGuard } from '../../core/jwt/guards/at.guard';
 import { RtGuard } from '../../core/jwt/guards/rt.guard';
 import { RedisService } from 'src/common/redis/services/redis.service';
+import { CsrfGuard } from './utils/csrf.guard';
 
 @Module({
   imports: [PrismaModule, JwtModule.register({})],
@@ -22,7 +23,8 @@ import { RedisService } from 'src/common/redis/services/redis.service';
     GoogleStrategy,
     AtGuard,
     RtGuard,
-    RedisService
+    RedisService,
+    CsrfGuard,
   ],
   exports: [AuthService, TokenService],
 })

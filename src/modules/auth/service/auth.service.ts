@@ -137,6 +137,16 @@ export class AuthService {
     const email = params.email.toLowerCase();
     const now = new Date();
 
+    const ipLimit = await this.redisService.rateLimit(`verify-ip:${params.ip}`, 10, 3600);
+    if (!ipLimit.allowed) {
+      throw new ForbiddenException('Too many verification attempts from this IP. Please try later.');
+    }
+
+    const emailLimit = await this.redisService.rateLimit(`verify-email:${email}`, 5, 300);
+    if (!emailLimit.allowed) {
+      throw new ForbiddenException(`Too many verification attempts. Please try in ${emailLimit.resetInSeconds}s.`);
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { email },
@@ -187,8 +197,21 @@ export class AuthService {
 
 
 
-  async requestPasswordResetOtp(emailRaw: string): Promise<void> {
+  async requestPasswordResetOtp(emailRaw: string, ip?: string): Promise<void> {
     const email = emailRaw.toLowerCase();
+
+    if (ip) {
+      const ipLimit = await this.redisService.rateLimit(`forgot-password-ip:${ip}`, 5, 3600);
+      if (!ipLimit.allowed) {
+        throw new ForbiddenException('Too many password reset requests from this IP. Please try later.');
+      }
+    }
+
+    const emailLimit = await this.redisService.rateLimit(`forgot-password-email:${email}`, 1, 120);
+    if (!emailLimit.allowed) {
+      throw new BadRequestException(`Please wait ${emailLimit.resetInSeconds}s before requesting another OTP.`);
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: { id: true, status: true },
@@ -300,8 +323,20 @@ export class AuthService {
 
 
   async login(dto: LoginDto, ip: string, ua: string): Promise<Tokens> {
+    const email = dto.email.toLowerCase();
+
+    const ipLimit = await this.redisService.rateLimit(`login-ip:${ip}`, 20, 3600);
+    if (!ipLimit.allowed) {
+      throw new ForbiddenException('Too many login attempts from this IP. Please try later.');
+    }
+
+    const accountLimit = await this.redisService.rateLimit(`login-account:${email}`, 5, 300);
+    if (!accountLimit.allowed) {
+      throw new ForbiddenException(`Too many login attempts for this account. Please try in ${accountLimit.resetInSeconds}s.`);
+    }
+
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { email },
       select: { id: true, password: true, status: true, tokenVersion: true },
     });
 
@@ -373,6 +408,13 @@ export class AuthService {
     ua: string;
   }): Promise<Tokens> {
     const email = params.email.toLowerCase();
+    const encryptedAccessToken = SecurityUtil.encryptSensitive(params.accessToken);
+    const encryptedRefreshToken = params.refreshToken
+      ? SecurityUtil.encryptSensitive(params.refreshToken)
+      : null;
+    const encryptedIdToken = params.idToken
+      ? SecurityUtil.encryptSensitive(params.idToken)
+      : null;
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.upsert({
@@ -402,18 +444,18 @@ export class AuthService {
           type: 'oauth',
           provider: 'google',
           providerAccountId: params.providerAccountId,
-          access_token: params.accessToken,
-          refresh_token: params.refreshToken ?? null,
-          id_token: params.idToken ?? null,
+          access_token: encryptedAccessToken,
+          refresh_token: encryptedRefreshToken,
+          id_token: encryptedIdToken,
         },
         create: {
           userId: user.id,
           type: 'oauth',
           provider: 'google',
           providerAccountId: params.providerAccountId,
-          access_token: params.accessToken,
-          refresh_token: params.refreshToken ?? null,
-          id_token: params.idToken ?? null,
+          access_token: encryptedAccessToken,
+          refresh_token: encryptedRefreshToken,
+          id_token: encryptedIdToken,
         },
       });
 

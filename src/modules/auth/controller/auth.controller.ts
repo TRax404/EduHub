@@ -24,6 +24,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type { GoogleValidatedUser } from '../../../core/jwt/strategies/google.strategy';
 import { randomUUID } from 'crypto';
 import { ChangePasswordDto, RequestPasswordResetOtpDto, ResetPasswordWithOtpDto, VerifyEmailOtpDto } from '../dto/otp.dto';
+import { CsrfGuard } from '../utils/csrf.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -103,8 +104,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset OTP', description: 'Sends 1-minute OTP if the user exists.' })
   @ApiBody({ type: RequestPasswordResetOtpDto })
-  async forgotPassword(@Body() dto: RequestPasswordResetOtpDto) {
-    await this.authService.requestPasswordResetOtp(dto.email);
+  async forgotPassword(
+    @Body() dto: RequestPasswordResetOtpDto,
+    @GetDeviceInfo() deviceInfo: DeviceInfo,
+  ) {
+    await this.authService.requestPasswordResetOtp(dto.email, deviceInfo.ip);
     return {
       statusCode: HttpStatus.OK,
       message: 'If the account exists, an OTP has been sent.'
@@ -140,6 +144,7 @@ export class AuthController {
   @ApiCookieAuth()
   @ApiBearerAuth()
   @ApiBody({ type: ChangePasswordDto })
+  @UseGuards(CsrfGuard)
   async changePassword(
     @GetUser('id') userId: string,
     @Body() dto: ChangePasswordDto,
@@ -157,7 +162,7 @@ export class AuthController {
 
   // ─── REFRESH ──────────────────────────────────────────────────────────────
   @Public()
-  @UseGuards(RtGuard)
+  @UseGuards(RtGuard, CsrfGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh tokens', description: 'Rotates refresh token and returns a new token pair.' })
@@ -190,6 +195,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout current device', description: 'Revokes current device session and clears cookies.' })
   @ApiCookieAuth()
   @ApiBearerAuth()
+  @UseGuards(CsrfGuard)
   async logout(
     @GetUser('id') userId: string,
     @GetUser('deviceId') tokenDeviceId: string,
@@ -211,6 +217,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout all sessions', description: 'Revokes all sessions for the user (tokenVersion++) and clears cookies.' })
   @ApiCookieAuth()
   @ApiBearerAuth()
+  @UseGuards(CsrfGuard)
   async logoutAll(
     @GetUser('id') userId: string,
     @Res({ passthrough: true }) res: Response,
@@ -283,9 +290,10 @@ export class AuthController {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private setCookies(res: Response, access: string, refresh: string) {
-    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const isProd = this.getIsProd();
     const accessMaxAge = Number(this.config.get('jwt.JWT_ACCESS_EXPIRES_MS')) || 900_000;
     const refreshMaxAge = Number(this.config.get('jwt.JWT_REFRESH_EXPIRES_MS')) || 604_800_000;
+    const csrfToken = randomUUID();
 
     const common: CookieOptions = {
       httpOnly: true,
@@ -295,15 +303,34 @@ export class AuthController {
     };
 
     res.cookie('access_token', access, { ...common, maxAge: accessMaxAge });
-    // res.cookie('refresh_token', refresh, { ...common, maxAge: refreshMaxAge, path: '/api/v1/auth/refresh' });
     res.cookie('refresh_token', refresh, { ...common, maxAge: refreshMaxAge, path: '/' });
+    res.cookie('csrf_token', csrfToken, {
+      httpOnly: false,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      path: '/',
+      maxAge: refreshMaxAge,
+    });
   }
 
   private clearCookies(res: Response) {
-    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const isProd = this.getIsProd();
     const common: CookieOptions = { httpOnly: true, secure: isProd, sameSite: isProd ? 'strict' : 'lax', path: '/' };
     res.clearCookie('access_token', common);
-    res.clearCookie('refresh_token', { ...common, path: '/api/v1/auth/refresh' });
+    res.clearCookie('refresh_token', common);
+    res.clearCookie('csrf_token', {
+      httpOnly: false,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      path: '/',
+    });
+  }
+
+  private getIsProd() {
+    return (
+      this.config.get<string>('node_env') === 'production' ||
+      this.config.get<string>('NODE_ENV') === 'production'
+    );
   }
 
   private extractPayloadUnsafe(token: string): JwtPayload {
