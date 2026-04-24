@@ -1,17 +1,17 @@
 import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ValueType, ContentStatus } from '@prisma/client';
+import { ContentStatus, ValueType } from 'prisma/generated/prisma/enums';
 
 export class CreateFeatureDto {
   @ApiProperty({ description: 'Unique identifier name (e.g., BOOK_QUIZ)' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty({ description: 'Display label for students' })
   @IsString()
   @IsNotEmpty()
-  label: string;
+  label!: string;
 
   @ApiPropertyOptional()
   @IsString()
@@ -20,7 +20,7 @@ export class CreateFeatureDto {
 
   @ApiProperty({ enum: ValueType })
   @IsEnum(ValueType)
-  valueType: ValueType;
+  valueType!: ValueType;
 
   @ApiPropertyOptional({ enum: ContentStatus, default: ContentStatus.TEST })
   @IsEnum(ContentStatus)

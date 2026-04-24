@@ -5,7 +5,7 @@ import { UpdateCategoryDto } from '../dto/update-category.dto';
 
 @Injectable()
 export class StudentCategoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(createCategoryDto: CreateCategoryDto) {
     const { parentId, slug, ...data } = createCategoryDto;
@@ -29,7 +29,7 @@ export class StudentCategoryService {
     const existingSlug = await this.prisma.category.findUnique({
       where: {
         parentId_slug: {
-          parentId: parentId || null,
+          parentId: parentId as any,
           slug,
         },
       },

@@ -7,7 +7,6 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { StudentCategoryModule } from './modules/mainFeatures/studentCategory/student-category.module';
 import { CategoryPlanModule } from './modules/mainFeatures/categoryPlan/category-plan.module';
-import { FeatureModule } from './modules/mainFeatures/feature/feature.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AtStrategy } from './core/jwt/strategies/at.strategy';
 import { RedisModule } from './common/redis/redis.module';
@@ -20,6 +19,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { MailModule } from './common/mail/mail.module';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 import { MetricsController } from './common/logger/metrics.controller';
+import { FeatureModule } from './modules/mainFeatures/features/feature.module';
 
 @Module({
   imports: [

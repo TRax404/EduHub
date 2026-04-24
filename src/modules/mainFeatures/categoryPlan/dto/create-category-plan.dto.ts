@@ -4,11 +4,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateCategoryPlanDto {
   @ApiProperty()
   @IsString()
-  categoryId: string;
+  categoryId!: string;
 
   @ApiProperty()
   @IsString()
-  planId: string;
+  planId!: string;
 
   @ApiPropertyOptional({ default: true })
   @IsBoolean()

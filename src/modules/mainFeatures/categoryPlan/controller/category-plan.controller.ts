@@ -15,20 +15,19 @@ import { CategoryPlanService } from '../service/category-plan.service';
 import { CreateCategoryPlanDto } from '../dto/create-category-plan.dto';
 import { UpdateCategoryPlanDto } from '../dto/update-category-plan.dto';
 import { Public } from '../../../../core/jwt/public.decorator';
-import { RolesGuard } from '../../../../core/jwt/roles.guard';
 import { Roles } from '../../../../core/jwt/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from 'prisma/generated/prisma/enums';
+import { JwtAuthGuard } from 'src/core/jwt/jwt-auth.guard';
+import { RolesGuard } from 'src/core/jwt/roles.guard';
 
 @ApiTags('Category Plan')
 @Controller('category-plan')
 export class CategoryPlanController {
-  constructor(private readonly categoryPlanService: CategoryPlanService) {}
+  constructor(private readonly categoryPlanService: CategoryPlanService) { }
 
   @Post()
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Link a plan to a category (Admin only)' })
   async create(@Body() createCategoryPlanDto: CreateCategoryPlanDto) {
@@ -40,10 +39,9 @@ export class CategoryPlanController {
     };
   }
 
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @Get()
   @ApiOperation({ summary: 'Get all category plan links (Admin only)' })
   async findAll() {
@@ -67,11 +65,10 @@ export class CategoryPlanController {
     };
   }
 
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Get category plan link by ID (Admin only)' })
   async findOne(@Param('id') id: string) {
     const data = await this.categoryPlanService.findOne(id);
@@ -83,10 +80,6 @@ export class CategoryPlanController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
   @ApiOperation({ summary: 'Update a category plan link (Admin only)' })
   async update(@Param('id') id: string, @Body() updateCategoryPlanDto: UpdateCategoryPlanDto) {
     const data = await this.categoryPlanService.update(id, updateCategoryPlanDto);
@@ -98,10 +91,8 @@ export class CategoryPlanController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Remove a plan from a category (Admin only)' })
   async remove(@Param('id') id: string) {
     await this.categoryPlanService.remove(id);
