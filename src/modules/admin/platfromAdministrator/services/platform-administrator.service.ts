@@ -18,7 +18,6 @@ export class PlatformAdministratorService {
     await this.checkUserExists(email);
 
     const passwordHash = await SecurityUtil.hashData(dto.password || 'EduTech@2024', true);
-
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
