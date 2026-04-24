@@ -17,16 +17,17 @@ import { UpdateCategoryDto } from '../dto/update-category.dto';
 import { Public } from '../../../../core/jwt/public.decorator';
 import { RolesGuard } from '../../../../core/jwt/roles.guard';
 import { Roles } from '../../../../core/jwt/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from 'prisma/generated/prisma/enums';
+import { JwtAuthGuard } from '../../../../core/jwt/jwt-auth.guard';
 
 @ApiTags('Student Category')
 @Controller('student-category')
 export class StudentCategoryController {
-  constructor(private readonly studentCategoryService: StudentCategoryService) {}
+  constructor(private readonly studentCategoryService: StudentCategoryService) { }
 
   @Post()
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiBearerAuth()
   @ApiCookieAuth()
   @HttpCode(HttpStatus.CREATED)
@@ -77,10 +78,8 @@ export class StudentCategoryController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Update a category (Admin only)' })
   async update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
     const data = await this.studentCategoryService.update(id, updateCategoryDto);
@@ -92,10 +91,8 @@ export class StudentCategoryController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Delete a category (Admin only)' })
   async remove(@Param('id') id: string) {
     await this.studentCategoryService.remove(id);

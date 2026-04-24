@@ -18,12 +18,12 @@ export class CreateCategoryDto {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  slug: string;
+  slug!: string;
 
   @ApiPropertyOptional()
   @IsString()
@@ -32,7 +32,7 @@ export class CreateCategoryDto {
 
   @ApiProperty({ enum: CategoryType })
   @IsEnum(CategoryType)
-  type: CategoryType;
+  type!: CategoryType;
 
   @ApiPropertyOptional({ enum: ContentStatus, default: ContentStatus.TEST })
   @IsEnum(ContentStatus)

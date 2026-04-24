@@ -1,0 +1,19 @@
+model SupporterProfile {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Identity
+    firstName String
+    lastName  String?
+    avatarUrl String?
+
+    // Performance Metrics
+    averageResponseTime Float? // In minutes
+    resolvedTickets     Int    @default(0)
+    rating              Float  @default(0.0)
+
+    // Auth layer
+    profileId String  @unique
+    profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
