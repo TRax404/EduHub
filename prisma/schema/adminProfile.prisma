@@ -1,0 +1,33 @@
+model AdminProfile {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Identity
+    firstName   String
+    lastName    String?
+    avatarUrl   String?
+    designation String? // e.g., "Senior Moderator", "System Admin"
+
+    totalActions Int @default(0) // Audit counter for dashboard actions
+
+    // Auth layer connection
+    profileId String  @unique
+    profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+    // Relations to other models (Examples)
+    verifiedQuizzes String[] // Tracking IDs of quizzes they approved
+    auditLogs       AdminAuditLog[] // Specific detailed logs for admin actions
+}
+
+model AdminAuditLog {
+    id        String   @id @default(cuid())
+    adminId   String
+    action    String // e.g., "BAN_USER", "UPDATE_CONTENT"
+    targetId  String? // ID of the user or content affected
+    details   Json?
+    ipAddress String?
+    createdAt DateTime @default(now())
+
+    admin AdminProfile @relation(fields: [adminId], references: [id])
+}

@@ -8,7 +8,10 @@ model Profile {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  student StudentProfile?
+  student   StudentProfile?
+  admin     AdminProfile?
+  maker     MakerProfile? //
+  supporter SupporterProfile?
 }
 
 enum ProfileType {
@@ -17,5 +20,5 @@ enum ProfileType {
   STUDENT
   PARENT
   SUPPORTER
-  MAKER
+  QUIZZER
 }

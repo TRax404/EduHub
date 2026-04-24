@@ -70,7 +70,7 @@ enum UserRole {
   //--------------------------------------------
   DEVELOPER // for testing
   SUPPORTER // for support
-  QUIZER // upload quiz
+  QUIZZER // upload quiz
   MANAGER // check all upload quiz and verify
   ADMIN // manage dashboard
   SUPERADMIN // manage other role 

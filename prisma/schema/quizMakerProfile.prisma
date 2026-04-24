@@ -1,0 +1,51 @@
+model MakerProfile {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Identity
+    displayName String
+    bio         String?
+    expertise   String[] // e.g., ["Mathematics", "Physics"]
+    avatarUrl   String?
+
+    // Stats & Reputation
+    totalSubmissions    Int @default(0)
+    approvedSubmissions Int @default(0)
+    rejectedSubmissions Int @default(0)
+
+    // Auth layer
+    profileId String  @unique
+    profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+    // Submissions (Example: Quiz or Question model)
+    quizzes QuizSubmission[]
+}
+
+model QuizSubmission {
+    id      String           @id @default(cuid())
+    title   String
+    content Json
+    status  SubmissionStatus @default(PENDING)
+
+    // Feedback from Admin
+    adminFeedback String?
+    reviewedAt    DateTime?
+
+    // Relations
+    makerId String
+    maker   MakerProfile @relation(fields: [makerId], references: [id])
+
+    // reviewedById String?
+    // reviewedBy   AdminProfile? @relation(fields: [reviewedById], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+enum SubmissionStatus {
+    PENDING
+    APPROVED
+    REJECTED
+    NEEDS_REVISION
+}

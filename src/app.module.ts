@@ -20,6 +20,7 @@ import { MailModule } from './common/mail/mail.module';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 import { MetricsController } from './common/logger/metrics.controller';
 import { FeatureModule } from './modules/mainFeatures/features/feature.module';
+import { PlatformAdministratorModule } from './modules/admin/platfromAdministrator/administrator.module';
 
 @Module({
   imports: [
@@ -28,11 +29,20 @@ import { FeatureModule } from './modules/mainFeatures/features/feature.module';
     ScheduleModule.forRoot(),
     FileModule,
     ConfigurationModule,
+
+    // Auth
     AuthModule,
     UserModule,
+
+    //main features
     StudentCategoryModule,
     CategoryPlanModule,
     FeatureModule,
+
+    // adminministator
+    PlatformAdministratorModule,
+
+    // core
     PrismaModule,
     RedisModule,
     MailModule,
