@@ -1,0 +1,16 @@
+model DeveloperProfile {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Identity
+    firstName String
+    lastName  String?
+    apiKey    String? @unique
+
+    githubId String?
+
+    // Auth layer
+    profileId String  @unique
+    profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}

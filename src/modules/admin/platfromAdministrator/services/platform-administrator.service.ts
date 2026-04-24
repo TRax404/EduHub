@@ -5,6 +5,7 @@ import { CreateAdminDto } from '../dto/create-admin.dto';
 import { SecurityUtil } from 'src/common/security/security.util';
 import { CreateSupporterDto } from '../dto/create-supporter.dto';
 import { CreateMakerDto } from '../dto/create-maker.dto';
+import { CreateDeveloperDto } from '../dto/create-developer.dto';
 import { FilterAdministratorDto } from '../dto/filter-administrator.dto';
 import { UpdateRoleStatusDto } from '../dto/update-role-status.dto';
 import { Prisma } from 'prisma/generated/prisma/client';
@@ -18,6 +19,7 @@ export class PlatformAdministratorService {
     await this.checkUserExists(email);
 
     const passwordHash = await SecurityUtil.hashData(dto.password || 'EduTech@2024', true);
+
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -90,11 +92,11 @@ export class PlatformAdministratorService {
   }
 
   async createMaker(dto: CreateMakerDto) {
-
-
     const email = dto.email.toLowerCase();
     await this.checkUserExists(email);
+
     const passwordHash = await SecurityUtil.hashData(dto.password || 'EduTech@2024', true);
+
     return await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -128,10 +130,49 @@ export class PlatformAdministratorService {
     });
   }
 
+  async createDeveloper(dto: CreateDeveloperDto) {
+    const email = dto.email.toLowerCase();
+    await this.checkUserExists(email);
+
+    const passwordHash = await SecurityUtil.hashData(dto.password || 'EduTech@2024', true);
+
+    return await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: passwordHash,
+          role: UserRole.DEVELOPER,
+          status: UserStatus.ACTIVE,
+          authSecurity: {
+            create: { hasPassword: true }
+          }
+        }
+      });
+
+      const profile = await tx.profile.create({
+        data: {
+          userId: user.id,
+          profileType: ProfileType.DEVELOPER,
+        }
+      });
+
+      await tx.developerProfile.create({
+        data: {
+          profileId: profile.id,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          githubId: dto.githubId,
+        }
+      });
+
+      return { userId: user.id, email: user.email };
+    });
+  }
+
   async findAllAdministrators(filter: FilterAdministratorDto) {
     const roles: UserRole[] = filter.role
       ? [filter.role as unknown as UserRole]
-      : [UserRole.ADMIN, UserRole.SUPPORTER, UserRole.QUIZZER];
+      : [UserRole.ADMIN, UserRole.SUPPORTER, UserRole.QUIZZER, UserRole.DEVELOPER];
 
     const where: Prisma.UserWhereInput = {
       role: { in: roles },
@@ -150,6 +191,8 @@ export class PlatformAdministratorService {
               { supporter: { firstName: { contains: search, mode: 'insensitive' } } },
               { supporter: { lastName: { contains: search, mode: 'insensitive' } } },
               { maker: { displayName: { contains: search, mode: 'insensitive' } } },
+              { developer: { firstName: { contains: search, mode: 'insensitive' } } },
+              { developer: { lastName: { contains: search, mode: 'insensitive' } } },
             ]
           }
         }
@@ -169,6 +212,7 @@ export class PlatformAdministratorService {
             admin: true,
             supporter: true,
             maker: true,
+            developer: true,
           }
         }
       },
@@ -180,7 +224,7 @@ export class PlatformAdministratorService {
     const user = await this.prisma.user.findFirst({
       where: {
         id: userId,
-        role: { in: [UserRole.ADMIN, UserRole.SUPPORTER, UserRole.QUIZZER] },
+        role: { in: [UserRole.ADMIN, UserRole.SUPPORTER, UserRole.QUIZZER, UserRole.DEVELOPER] },
         deletedAt: null,
       }
     });
