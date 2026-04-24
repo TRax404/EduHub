@@ -88,6 +88,30 @@ model StudentProfile {
   payments       PaymentTransaction[]
 }
 
+// ============================================================
+//                        PROGRESS 
+// ============================================================
+
+model StudentProgress {
+  id          String      @id @default(cuid())
+  studentId   String
+  contentId   String
+  contentType ContentType
+
+  score        Float?
+  attempts     Int       @default(0)
+  lastPageRead Int?
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, contentId, contentType])
+  @@index([studentId])
+}
+
 enum ClassLevel {
   SIX
   SEVEN

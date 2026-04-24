@@ -1,11 +1,20 @@
 import * as argon2 from 'argon2';
-import { timingSafeEqual, randomBytes, createHmac } from 'crypto';
+import {
+    timingSafeEqual,
+    randomBytes,
+    createHmac,
+    createCipheriv,
+    createDecipheriv,
+    createHash,
+} from 'crypto';
 
 /**
  * SecurityUtil — Production-grade cryptographic utility
  * Covers: hashing, comparison, OTP, recovery codes, HMAC pepper
  */
 export class SecurityUtil {
+    private static readonly encryptionVersion = 'enc:v1';
+
     // ─── Argon2id Config (env-driven, fail-fast) ───────────────────────────────
     private static readonly argonOptions: argon2.Options = {
         type: argon2.argon2id,
@@ -135,6 +144,75 @@ export class SecurityUtil {
     static generateSecureToken(byteLength = 32): string {
         return randomBytes(byteLength)
             .toString('base64url'); // URL-safe, no padding issues
+    }
+
+    /**
+     * Encrypt reversible secrets like third-party OAuth tokens before storing them.
+     */
+    static encryptSensitive(data: string): string {
+        if (!data) throw new Error('Cannot encrypt empty data');
+
+        const keyMaterial =
+            process.env.OAUTH_TOKEN_ENCRYPTION_KEY ||
+            process.env.DATA_ENCRYPTION_KEY ||
+            process.env.APP_ENCRYPTION_KEY;
+
+        if (!keyMaterial) {
+            throw new Error(
+                'Missing OAuth token encryption key. Set OAUTH_TOKEN_ENCRYPTION_KEY (or DATA_ENCRYPTION_KEY / APP_ENCRYPTION_KEY).',
+            );
+        }
+
+        const key = createHash('sha256').update(keyMaterial).digest();
+        const iv = randomBytes(12);
+        const cipher = createCipheriv('aes-256-gcm', key, iv);
+        const encrypted = Buffer.concat([
+            cipher.update(data, 'utf8'),
+            cipher.final(),
+        ]);
+        const tag = cipher.getAuthTag();
+
+        return [
+            SecurityUtil.encryptionVersion,
+            iv.toString('base64url'),
+            tag.toString('base64url'),
+            encrypted.toString('base64url'),
+        ].join(':');
+    }
+
+    static decryptSensitive(payload: string): string {
+        if (!payload) throw new Error('Cannot decrypt empty data');
+
+        const keyMaterial =
+            process.env.OAUTH_TOKEN_ENCRYPTION_KEY ||
+            process.env.DATA_ENCRYPTION_KEY ||
+            process.env.APP_ENCRYPTION_KEY;
+
+        if (!keyMaterial) {
+            throw new Error(
+                'Missing OAuth token encryption key. Set OAUTH_TOKEN_ENCRYPTION_KEY (or DATA_ENCRYPTION_KEY / APP_ENCRYPTION_KEY).',
+            );
+        }
+
+        const [version, ivB64, tagB64, cipherB64] = payload.split(':');
+        if (version !== SecurityUtil.encryptionVersion || !ivB64 || !tagB64 || !cipherB64) {
+            throw new Error('Invalid encrypted payload format');
+        }
+
+        const key = createHash('sha256').update(keyMaterial).digest();
+        const decipher = createDecipheriv(
+            'aes-256-gcm',
+            key,
+            Buffer.from(ivB64, 'base64url'),
+        );
+        decipher.setAuthTag(Buffer.from(tagB64, 'base64url'));
+
+        const decrypted = Buffer.concat([
+            decipher.update(Buffer.from(cipherB64, 'base64url')),
+            decipher.final(),
+        ]);
+
+        return decrypted.toString('utf8');
     }
 
     /**
