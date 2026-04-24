@@ -5,7 +5,9 @@ export enum AdminFilterRole {
   ADMIN = 'ADMIN',
   SUPPORTER = 'SUPPORTER',
   QUIZZER = 'QUIZZER',
+  DEVELOPER = 'DEVELOPER',
 }
+
 
 export class FilterAdministratorDto {
   @ApiPropertyOptional({ enum: AdminFilterRole })

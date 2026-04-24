@@ -7,6 +7,7 @@ import { PlatformAdministratorService } from '../services/platform-administrator
 import { CreateAdminDto } from '../dto/create-admin.dto';
 import { CreateSupporterDto } from '../dto/create-supporter.dto';
 import { CreateMakerDto } from '../dto/create-maker.dto';
+import { CreateDeveloperDto } from '../dto/create-developer.dto';
 import { FilterAdministratorDto } from '../dto/filter-administrator.dto';
 import { UpdateRoleStatusDto } from '../dto/update-role-status.dto';
 
@@ -51,8 +52,19 @@ export class PlatformAdministratorController {
     };
   }
 
+  @Post('create-developer')
+  @ApiOperation({ summary: 'Create a new developer user (SuperAdmin only)' })
+  async createDeveloper(@Body() dto: CreateDeveloperDto) {
+    const result = await this.adminService.createDeveloper(dto);
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: 'Developer account created successfully',
+      data: result,
+    };
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Get all administrators (SuperAdmin only)', description: 'Returns admins, supporters, and makers. Can filter by role and search by email or name.' })
+  @ApiOperation({ summary: 'Get all administrators (SuperAdmin only)', description: 'Returns admins, supporters, makers and developers. Can filter by role and search by email or name.' })
   async getAllAdministrators(@Query() filter: FilterAdministratorDto) {
     const result = await this.adminService.findAllAdministrators(filter);
     return {

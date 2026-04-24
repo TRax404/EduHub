@@ -12,6 +12,7 @@ model Profile {
   admin     AdminProfile?
   maker     MakerProfile? //
   supporter SupporterProfile?
+  developer DeveloperProfile?
 }
 
 enum ProfileType {
@@ -21,4 +22,5 @@ enum ProfileType {
   PARENT
   SUPPORTER
   QUIZZER
+  DEVELOPER
 }
