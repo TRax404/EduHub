@@ -5,7 +5,7 @@ import { UpdateFeatureDto } from '../dto/update-feature.dto';
 
 @Injectable()
 export class FeatureService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(createFeatureDto: CreateFeatureDto) {
     const { name, label, ...data } = createFeatureDto;
@@ -20,7 +20,7 @@ export class FeatureService {
       },
     });
     if (existingName) {
-      throw new ConflictException(`Feature with name "${name}" already exists`);
+      throw new ConflictException(`Feature with name ${name} already exists`);
     }
 
     // 2. Check if feature label exists (case-insensitive)
@@ -33,7 +33,7 @@ export class FeatureService {
       },
     });
     if (existingLabel) {
-      throw new ConflictException(`Feature with label "${label}" already exists`);
+      throw new ConflictException(`Feature with label ${label} already exists`);
     }
 
     return this.prisma.feature.create({
@@ -90,7 +90,7 @@ export class FeatureService {
         },
       });
       if (existingName) {
-        throw new ConflictException(`Feature with name "${name}" already exists`);
+        throw new ConflictException(`Feature with name ${name} already exists`);
       }
     }
 
@@ -103,7 +103,7 @@ export class FeatureService {
         },
       });
       if (existingLabel) {
-        throw new ConflictException(`Feature with label "${label}" already exists`);
+        throw new ConflictException(`Feature with label ${label} already exists`);
       }
     }
 
