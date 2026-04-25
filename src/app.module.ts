@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { StudentCategoryModule } from './modules/mainFeatures/studentCategory/student-category.module';
 import { CategoryPlanModule } from './modules/mainFeatures/categoryPlan/category-plan.module';
+import { SubscriptionModule } from './modules/mainFeatures/subscription/subscription.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AtStrategy } from './core/jwt/strategies/at.strategy';
 import { RedisModule } from './common/redis/redis.module';
@@ -34,13 +35,16 @@ import { PlatformAdministratorModule } from './modules/admin/platfromAdministrat
     AuthModule,
     UserModule,
 
+    // adminministator
+    PlatformAdministratorModule,
+
     //main features
     StudentCategoryModule,
     CategoryPlanModule,
     FeatureModule,
+    SubscriptionModule,
 
-    // adminministator
-    PlatformAdministratorModule,
+
 
     // core
     PrismaModule,
