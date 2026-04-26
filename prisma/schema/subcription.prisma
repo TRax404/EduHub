@@ -6,7 +6,7 @@ model SubscriptionPlan {
     id           String   @id @default(cuid())
     name         String
     description  String?
-    price        Float    @default(0)
+    price        Decimal  @default(0) @db.Decimal(10, 2)
     durationDays Int      @default(365)
     tier         PlanTier @default(FREE)
 
