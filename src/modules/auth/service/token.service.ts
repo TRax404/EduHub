@@ -158,14 +158,7 @@ export class TokenService {
   /**
    * Rotates refresh token with full breach detection:
    */
-  async rotateRefreshToken(
-    userId: string,
-    deviceId: string,
-    rt: string,
-    ip: string,
-    ua: string,
-    tokenVersion: number,
-  ): Promise<Tokens> {
+  async rotateRefreshToken(userId: string, deviceId: string, rt: string, ip: string, ua: string, tokenVersion: number,): Promise<Tokens> {
     return this.prisma.$transaction(async (tx) => {
       // Verify the incoming refresh token itself (signature + claims).
       // RtStrategy already validated the signature, but we also need the raw token's JTI/FAMILY
