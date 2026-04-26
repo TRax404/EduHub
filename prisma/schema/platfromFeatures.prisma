@@ -5,7 +5,7 @@
 model Feature {
     id          String        @id @default(cuid())
     name        String        @unique // BOOK_QUIZ, AI_QUIZ, PREV_EXAM, ADMIN_EXAM
-    label       String // student কে দেখানো নাম
+    label       String // student show name 
     description String?
     valueType   ValueType // BOOLEAN বা NUMBER
     status      ContentStatus @default(TEST) // feature নিজেও TEST/BETA/PUBLISH হতে পারে

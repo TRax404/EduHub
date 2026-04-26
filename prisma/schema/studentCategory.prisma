@@ -39,7 +39,7 @@ model CategoryPlan {
     planId     String
     isActive   Boolean @default(true)
 
-    // Plan এর default price override করতে চাইলে
+    // Plan এর default price override
     priceOverride Decimal @default(0) @db.Decimal(10, 2)
 
     category Category         @relation(fields: [categoryId], references: [id])

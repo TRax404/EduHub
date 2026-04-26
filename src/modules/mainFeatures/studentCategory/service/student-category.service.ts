@@ -53,8 +53,13 @@ export class StudentCategoryService {
     const category = await this.prisma.category.findUnique({
       where: { id },
       include: {
-        children: true,
-        parent: true,
+        // children: true,
+        // parent: true,
+        categoryPlans: {
+          select: {
+            plan: true
+          }
+        }
       },
     });
 
