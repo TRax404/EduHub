@@ -62,7 +62,7 @@ export class AuthService {
       throw new ConflictException('Email already exists and is verified.');
     }
 
-    // ৪. পাসওয়ার্ড হ্যাশ করা
+    //
     const passwordHash = await SecurityUtil.hashData(dto.password as any);
 
     try {

@@ -7,11 +7,11 @@ import { UserRole, UserStatus, ProfileType } from '../../../prisma/generated/pri
 export class SeederService {
   private readonly logger = new Logger(SeederService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async seedAdmin() {
     const adminEmail = process.env.ADMIN_EMAIL || 'superadmin@gmail.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'SuperAdmin@123';
+    const adminPassword = process.env.ADMIN_PASSWORD || '123456789';
 
     const existingAdmin = await this.prisma.user.findUnique({
       where: { email: adminEmail },
