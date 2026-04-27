@@ -1,7 +1,10 @@
 import {
   Controller,
+  Get,
   Post,
+  Delete,
   Body,
+  Param,
   UseInterceptors,
   UploadedFile,
   HttpStatus,
@@ -12,13 +15,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { CaptureService } from '../services/capture.service';
 import { CaptureImageDto } from '../dto/capture.dto';
 import { AtGuard } from 'src/core/jwt/guards/at.guard';
 import { RolesGuard } from 'src/core/jwt/roles.guard';
 import { Roles } from 'src/core/jwt/roles.decorator';
 import { UserRole } from 'prisma/generated/prisma/enums';
+import { GetUser } from 'src/core/jwt/get-user.decorator';
 
 @ApiTags('Capture')
 @ApiBearerAuth()
@@ -45,6 +49,7 @@ export class CaptureController {
     },
   })
   async captureImage(
+    @GetUser('id') userId: string,
     @Body() dto: CaptureImageDto,
     @UploadedFile(
       new ParseFilePipe({
@@ -56,11 +61,48 @@ export class CaptureController {
     )
     file: Express.Multer.File,
   ) {
-    const data = await this.captureService.captureImage(dto, file);
+    const data = await this.captureService.captureImage(userId, dto, file);
     return {
       statusCode: HttpStatus.OK,
       message: 'Image processed successfully',
       data,
+    };
+  }
+
+  @Get('history')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Get capture history for the current admin' })
+  async getHistory(@GetUser('id') userId: string) {
+    const data = await this.captureService.getCaptureHistory(userId);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Capture history retrieved successfully',
+      data,
+    };
+  }
+
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Get details of a specific capture' })
+  async getDetails(@GetUser('id') userId: string, @Param('id') id: string) {
+    const data = await this.captureService.getCaptureDetails(userId, id);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Capture details retrieved successfully',
+      data,
+    };
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a capture history record' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Record deleted successfully' })
+  async remove(@GetUser('id') userId: string, @Param('id') id: string) {
+    const data = await this.captureService.deleteCapture(userId, id);
+    return {
+      statusCode: HttpStatus.OK,
+      ...data,
     };
   }
 }

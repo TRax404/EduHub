@@ -7,6 +7,7 @@ export type AppJobsOptions = JobsOptions & { timeout?: number };
 export enum QueueNames {
   AUTH = 'auth_queue',
   EMAIL = 'email_queue',
+  ADMIN_AUDIT = 'admin_audit_queue',
   DEAD_LETTER = 'dead_letter_queue',
 }
 
@@ -19,6 +20,10 @@ export enum AuthJobNames {
 export enum EmailJobNames {
   SEND_WELCOME_EMAIL = 'send_welcome_email',
   SEND_OTP_EMAIL = 'send_otp_email',
+}
+
+export enum AdminAuditJobNames {
+  LOG_ACTION = 'log_admin_action',
 }
 
 export enum DeadLetterJobNames {
@@ -43,6 +48,7 @@ export enum AuditStatus {
 // ─── Per-Job Options ──────────────────────────────────────────────────────────
 /** Hard cap on handler runtime so workers cannot hang forever (frees concurrency slots). */
 const AUTH_JOB_TIMEOUT_MS = 20_000;
+const ADMIN_AUDIT_JOB_TIMEOUT_MS = 20_000;
 
 export const AUTH_JOB_OPTIONS: Record<AuthJobNames, AppJobsOptions> = {
   [AuthJobNames.CREATE_LOGIN_HISTORY]: {
@@ -59,6 +65,17 @@ export const AUTH_JOB_OPTIONS: Record<AuthJobNames, AppJobsOptions> = {
     removeOnComplete: { count: 50, age: 24 * 3600 },
     removeOnFail: { count: 200 },
     priority: 1,
+  },
+};
+
+export const ADMIN_AUDIT_JOB_OPTIONS: Record<AdminAuditJobNames, AppJobsOptions> = {
+  [AdminAuditJobNames.LOG_ACTION]: {
+    attempts: 5,
+    backoff: { type: 'exponential', delay: 1_000 },
+    timeout: ADMIN_AUDIT_JOB_TIMEOUT_MS,
+    removeOnComplete: { count: 100, age: 30 * 24 * 3600 }, // keep 30 days
+    removeOnFail: { count: 500 },
+    priority: 2,
   },
 };
 

@@ -9,6 +9,8 @@ import {
   HttpStatus,
   HttpCode,
   UseGuards,
+  Ip,
+  Headers,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { BookService } from '../services/book.service';
@@ -18,6 +20,7 @@ import { AtGuard } from 'src/core/jwt/guards/at.guard';
 import { RolesGuard } from 'src/core/jwt/roles.guard';
 import { Roles } from 'src/core/jwt/roles.decorator';
 import { UserRole } from 'prisma/generated/prisma/enums';
+import { GetUser } from 'src/core/jwt/get-user.decorator';
 
 
 @ApiTags('Books')
@@ -32,8 +35,13 @@ export class BookController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new book (Admin/SuperAdmin only)' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Book created successfully' })
-  async create(@Body() createBookDto: CreateBookDto) {
-    const data = await this.bookService.create(createBookDto);
+  async create(
+    @Body() createBookDto: CreateBookDto,
+    @GetUser('id') userId: string,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    const data = await this.bookService.create(createBookDto, { userId, ip, userAgent });
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Book created successfully',
@@ -69,8 +77,14 @@ export class BookController {
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a book (Admin/SuperAdmin only)' })
-  async update(@Param('id') id: string, @Body() updateBookDto: UpdateBookDto) {
-    const data = await this.bookService.update(id, updateBookDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateBookDto: UpdateBookDto,
+    @GetUser('id') userId: string,
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    const data = await this.bookService.update(id, updateBookDto, { userId, ip, userAgent });
     return {
       statusCode: HttpStatus.OK,
       message: 'Book updated successfully',

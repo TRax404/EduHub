@@ -1,6 +1,7 @@
 model Book {
     id                 String              @id @default(cuid())
     title              String
+    image              String?
     customId           String              @unique
     year               String
     tags               String[]

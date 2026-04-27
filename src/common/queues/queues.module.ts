@@ -5,8 +5,10 @@ import { bullMqConnectionFromConfig } from '../redis/redis-options.factory';
 import { QueueNames } from './constants/queues.constants';
 import { AuthQueueProducer } from './producers/auth-queue.producer';
 import { EmailQueueProducer } from './producers/email-queue.producer';
+import { AdminAuditQueueProducer } from './producers/admin-audit-queue.producer';
 import { AuthProcessor } from './processors/auth.processor';
 import { EmailProcessor } from './processors/email.processor';
+import { AdminAuditProcessor } from './processors/admin-audit.processor';
 import { DeadLetterProcessor } from './processors/dead-letter.processor';
 import { MailModule } from '../mail/mail.module';
 
@@ -70,6 +72,16 @@ import { MailModule } from '../mail/mail.module';
       },
     }),
 
+    // ── Admin Audit queue ─────────────────────────────────────────────────────
+    BullModule.registerQueue({
+      name: QueueNames.ADMIN_AUDIT,
+      defaultJobOptions: {
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 1_000 },
+        timeout: 20_000,
+      },
+    }),
+
     // ── Dead-letter queue ─────────────────────────────────────────────────────
     // Receives jobs that exhausted all retries in the auth queue.
     // Workers here can alert, store to S3, or trigger Slack notifications.
@@ -86,10 +98,12 @@ import { MailModule } from '../mail/mail.module';
   providers: [
     AuthQueueProducer,
     EmailQueueProducer,
+    AdminAuditQueueProducer,
     AuthProcessor,
     EmailProcessor,
+    AdminAuditProcessor,
     DeadLetterProcessor,
   ],
-  exports: [AuthQueueProducer, EmailQueueProducer, BullModule],
+  exports: [AuthQueueProducer, EmailQueueProducer, AdminAuditQueueProducer, BullModule],
 })
 export class QueuesModule { }
