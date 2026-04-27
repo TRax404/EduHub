@@ -8,42 +8,37 @@ export class StudentCategoryService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(createCategoryDto: CreateCategoryDto) {
-    const { parentId, slug, ...data } = createCategoryDto;
+    const { parentId, name, ...data } = createCategoryDto;
 
-    // Check if category with same name exists under same parent (case-insensitive)
-    const existingName = await this.prisma.category.findFirst({
+    // Auto-generate slug from name
+    const slug = name
+      .toLowerCase()
+      .replace(/[^\w ]+/g, '')
+      .replace(/ +/g, '-');
+
+    const existingCategory = await this.prisma.category.findFirst({
       where: {
         parentId: parentId || null,
-        name: {
-          equals: data.name,
-          mode: 'insensitive',
-        },
+        OR: [
+          { name: { equals: name, mode: 'insensitive' } },
+          { slug: slug }
+        ]
       },
     });
 
-    if (existingName) {
-      throw new ConflictException('Category with this name already exists under this parent');
-    }
-
-    // Check if category with same slug exists under same parent
-    const existingSlug = await this.prisma.category.findUnique({
-      where: {
-        parentId_slug: {
-          parentId: parentId as any,
-          slug,
-        },
-      },
-    });
-
-    if (existingSlug) {
-      throw new ConflictException('Category with this slug already exists under this parent');
+    if (existingCategory) {
+      const message = existingCategory.name.toLowerCase() === name.toLowerCase()
+        ? 'Category name already exists'
+        : 'Generated slug already exists';
+      throw new ConflictException(message);
     }
 
     return this.prisma.category.create({
       data: {
         ...data,
+        name,
         slug,
-        parent: parentId ? { connect: { id: parentId } } : undefined,
+        parentId: parentId || null,
       },
     });
   }
@@ -58,8 +53,13 @@ export class StudentCategoryService {
     const category = await this.prisma.category.findUnique({
       where: { id },
       include: {
-        children: true,
-        parent: true,
+        // children: true,
+        // parent: true,
+        categoryPlans: {
+          select: {
+            plan: true
+          }
+        }
       },
     });
 
@@ -71,51 +71,48 @@ export class StudentCategoryService {
   }
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
-    const { parentId, ...data } = updateCategoryDto;
+    const { parentId, name, ...data } = updateCategoryDto;
 
-    // Verify existence and get current state
-    const current = await this.findOne(id);
+    const current = await this.prisma.category.findUnique({
+      where: { id },
+    });
 
-    const targetParentId = parentId !== undefined ? (parentId || null) : current.parentId;
-    const targetName = data.name !== undefined ? data.name : current.name;
-    const targetSlug = data.slug !== undefined ? data.slug : current.slug;
-
-    // Check name uniqueness if name or parentId changed
-    if (data.name !== undefined || parentId !== undefined) {
-      const existingName = await this.prisma.category.findFirst({
-        where: {
-          id: { not: id },
-          parentId: targetParentId,
-          name: {
-            equals: targetName,
-            mode: 'insensitive',
-          },
-        },
-      });
-      if (existingName) {
-        throw new ConflictException('Category with this name already exists under this parent');
-      }
+    if (!current) {
+      throw new NotFoundException('Category not found');
     }
 
-    // Check slug uniqueness if slug or parentId changed
-    if (data.slug !== undefined || parentId !== undefined) {
-      const existingSlug = await this.prisma.category.findFirst({
-        where: {
-          id: { not: id },
-          parentId: targetParentId,
-          slug: targetSlug,
-        },
-      });
-      if (existingSlug) {
-        throw new ConflictException('Category with this slug already exists under this parent');
-      }
+    const targetName = name ?? current.name;
+    const targetParentId = parentId !== undefined ? (parentId || null) : current.parentId;
+
+    const targetSlug = name
+      ? name.toLowerCase().replace(/[^\w ]+/g, '').replace(/ +/g, '-')
+      : current.slug;
+
+    const existingCategory = await this.prisma.category.findFirst({
+      where: {
+        id: { not: id },
+        parentId: targetParentId,
+        OR: [
+          { name: { equals: targetName, mode: 'insensitive' } },
+          { slug: targetSlug }
+        ]
+      },
+    });
+
+    if (existingCategory) {
+      const message = existingCategory.name.toLowerCase() === targetName.toLowerCase()
+        ? 'Category name already exists'
+        : 'Generated slug already exists';
+      throw new ConflictException(message);
     }
 
     return this.prisma.category.update({
       where: { id },
       data: {
         ...data,
-        parent: parentId !== undefined ? (parentId ? { connect: { id: parentId } } : { disconnect: true }) : undefined,
+        name: targetName,
+        slug: targetSlug,
+        parentId: targetParentId,
       },
     });
   }

@@ -20,10 +20,10 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  slug!: string;
+  // @ApiProperty()
+  // @IsString()
+  // @IsNotEmpty()
+  // slug!: string;
 
   @ApiPropertyOptional()
   @IsString()

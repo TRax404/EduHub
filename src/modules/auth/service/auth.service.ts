@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, ForbiddenException, BadRequestException, } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, ForbiddenException, BadRequestException, NotFoundException, } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { TokenService } from './token.service';
 import { CustomLoggerService } from '../../../common/logger/logger.service';
@@ -62,7 +62,7 @@ export class AuthService {
       throw new ConflictException('Email already exists and is verified.');
     }
 
-    // ৪. পাসওয়ার্ড হ্যাশ করা
+    //
     const passwordHash = await SecurityUtil.hashData(dto.password as any);
 
     try {
@@ -340,9 +340,18 @@ export class AuthService {
       select: { id: true, password: true, status: true, tokenVersion: true },
     });
 
-    if (!user || !user.password) {
+    if (!user) {
+      // Keep a comparable code path before returning the explicit missing-account error.
+      try {
+        const dummyHash = await this.dummyPasswordHashPromise;
+        await SecurityUtil.compareData(dto.password, dummyHash, true);
+      } catch { }
+      throw new NotFoundException('Account not exists');
+    }
+
+    if (!user.password) {
       // Timing equalization: compare against a dummy hash so attackers can't easily
-      // distinguish “no user” vs “bad password” by response time.
+      // distinguish “no password” vs “bad password” by response time.
       try {
         const dummyHash = await this.dummyPasswordHashPromise;
         await SecurityUtil.compareData(dto.password, dummyHash, true);
