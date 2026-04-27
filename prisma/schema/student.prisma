@@ -5,6 +5,7 @@ model StudentProfile {
 
   firstName       String
   lastName        String?
+  profileName     String? @unique
   customName      String?
   avatarUrl       String?
   institutionName String?

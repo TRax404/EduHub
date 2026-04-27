@@ -1,0 +1,25 @@
+// model ExamCategory {
+//     id        String   @id @default(cuid())
+//     name      String // উদা: "Weekly Exam", "Board Question Bank", "Live Mock Test"
+//     exams     Exam[]
+//     createdAt DateTime @default(now())
+// }
+
+// model Exam {
+//     id         String       @id @default(cuid())
+//     title      String // উদা: "Dhaka Board 2023 - Physics" বা "Weekly Test 04"
+//     year       String?
+//     categoryId String
+//     category   ExamCategory @relation(fields: [categoryId], references: [id])
+
+//     // সেটিংস
+//     duration       Int // টোটাল সময় (মিনিটে)
+//     negativeMark   Decimal @default(0.25)
+//     totalQuestions Int
+
+//     questions Question[] // এই পরীক্ষার জন্য ফিক্সড প্রশ্নগুলো
+//     attempts  ExamAttempt[]
+
+//     isVisible ContentStatus @default(TEST)
+//     createdAt DateTime      @default(now())
+// }

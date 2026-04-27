@@ -1,0 +1,13 @@
+model QuizAttempt {
+    id           String            @id @default(uuid())
+    userId       String
+    chapterId    String
+    chapter      Chapter           @relation(fields: [chapterId], references: [id])
+    difficultyId String
+    difficulty   DifficultySetting @relation(fields: [difficultyId], references: [id])
+    score        Float
+    correctCount Int
+    wrongCount   Int
+    timeTaken    Int
+    createdAt    DateTime          @default(now())
+}

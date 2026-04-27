@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { UpdateStudentProfileDto } from '../dto/update-student-profile.dto';
 import { SecurityUtil } from '../../../common/security/security.util';
+import { Prisma } from 'prisma/generated/prisma/client';
 
 @Injectable()
 export class UserService {
@@ -55,19 +56,23 @@ export class UserService {
 
       // 2. Ensure StudentProfile exists and update it
       if (!profile.student) {
-        const referralCode = SecurityUtil.generateSecureToken(4).toUpperCase();
+        const baseName = (dto.firstName || 'user').toLowerCase().replace(/\s+/g, '');
+        const profileName = await this.generateUniqueProfileName(tx, baseName);
+        const referralCode = await this.generateUniqueReferralCode(tx, baseName);
+
         return await tx.studentProfile.create({
           data: {
             profileId: profile.id,
             firstName: dto.firstName || '',
             lastName: dto.lastName,
+            profileName,
+            referralCode,
             avatarUrl: dto.avatarUrl,
             institutionName: dto.institutionName,
             bio: dto.bio,
             classLevel: dto.classLevel,
             studentGroup: dto.studentGroup,
             targetExam: dto.targetExam,
-            referralCode,
           },
         });
       } else {
@@ -86,5 +91,41 @@ export class UserService {
         });
       }
     });
+  }
+
+  private async generateUniqueProfileName(tx: Prisma.TransactionClient, baseName: string): Promise<string> {
+    let profileName = baseName;
+    let counter = 1;
+
+    while (true) {
+      const existing = await tx.studentProfile.findUnique({
+        where: { profileName },
+      });
+
+      if (!existing) {
+        return profileName;
+      }
+
+      profileName = `${baseName}${counter}`;
+      counter++;
+    }
+  }
+
+  private async generateUniqueReferralCode(tx: Prisma.TransactionClient, userName: string): Promise<string> {
+    const prefix = 'medhavQ';
+    let counter = Math.floor(100 + Math.random() * 900); // Start with a random 3-digit number
+
+    while (true) {
+      const referralCode = `${prefix}${userName}${counter}`;
+      const existing = await tx.studentProfile.findUnique({
+        where: { referralCode },
+      });
+
+      if (!existing) {
+        return referralCode;
+      }
+
+      counter++;
+    }
   }
 }
