@@ -23,6 +23,7 @@ import { MetricsController } from './common/logger/metrics.controller';
 import { FeatureModule } from './modules/mainFeatures/features/feature.module';
 import { PlatformAdministratorModule } from './modules/admin/platfromAdministrator/administrator.module';
 import { BadgeModule } from './modules/mainFeatures/badges/badge.module';
+import { QuizModule } from './modules/quiz/quiz.module';
 
 @Module({
   imports: [
@@ -46,7 +47,8 @@ import { BadgeModule } from './modules/mainFeatures/badges/badge.module';
     BadgeModule,
     SubscriptionModule,
 
-
+    // quiz
+    QuizModule,
 
     // core
     PrismaModule,
