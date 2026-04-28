@@ -23,7 +23,6 @@ import { UserRole } from 'prisma/generated/prisma/enums';
 import { GetUser } from 'src/core/jwt/get-user.decorator';
 
 @ApiTags('Books')
-@ApiBearerAuth()
 @UseGuards(AtGuard, RolesGuard)
 @Controller('books')
 export class BookController {
