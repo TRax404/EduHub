@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsUUID, IsOptional } from 'class-validator';
 
-export class CaptureImageDto {
-  @ApiProperty({ example: 'uuid-of-book' })
-  @IsUUID()
+export class ChapterImageDto {
+  @ApiProperty({ example: 'clw... (cuid)' })
+  @IsString()
   @IsNotEmpty()
-  bookId!: string;
+  bookId: string;
 
   @ApiPropertyOptional({ example: 'uuid-of-chapter' })
   @IsUUID()
@@ -17,4 +17,3 @@ export class CaptureImageDto {
   @IsOptional()
   notes?: string;
 }
-
