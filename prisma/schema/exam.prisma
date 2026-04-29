@@ -18,6 +18,7 @@ createdAt DateTime      @default(now())
 createdAt DateTime      @default(now()) createdAt DateTime      @default(now())
 //     negativeMark   Decimal @default(0.25)
 
+//     totalQuestions Int
 //     questions Question[] // এই পরীক্ষার জন্য ফিক্সড প্রশ্নগুলো
 //     attempts  ExamAttempt[]
 
