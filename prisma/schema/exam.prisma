@@ -15,7 +15,7 @@
 //     // সেটিংস
 //     duration       Int // টোটাল সময় (মিনিটে)
 createdAt DateTime      @default(now())
-createdAt DateTime      @default(now())
+createdAt DateTime      @default(now()) createdAt DateTime      @default(now())
 //     negativeMark   Decimal @default(0.25)
 //     totalQuestions Int
 
