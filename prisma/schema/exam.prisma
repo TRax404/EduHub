@@ -22,4 +22,5 @@
 
 //     isVisible ContentStatus @default(TEST)
 //     createdAt DateTime      @default(now())
+createdAt DateTime      @default(now())
 // }
