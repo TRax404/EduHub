@@ -1,0 +1,30 @@
+model DifficultySetting {
+    id   String @id @default(cuid())
+    name String // admin দেওয়া নাম, e.g. "Chapter Easy", "Board Exam Standard"
+
+    // Level — admin exam বা board exam এ level নাও থাকতে পারে
+    // তখন DEFAULT ব্যবহার হবে
+    level DifficultyLevel @default(DEFAULT)
+
+    // Per-question config
+    timePerQuestion Int     @default(60) // seconds
+    totalMark       Decimal @default(1) @db.Decimal(4, 2) // ১ প্রশ্ন = কত মার্ক
+    negativeMark    Decimal @default(0) @db.Decimal(4, 2) // ভুলে কতটুকু কাটবে
+
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // যেসব exam এই setting ব্যবহার করছে
+    exams Exam[]
+
+    @@index([level])
+    @@index([isActive])
+}
+
+enum DifficultyLevel {
+    EASY
+    MID
+    PRO
+    DEFAULT // level-less exams (admin exam, board exam, etc.)
+}

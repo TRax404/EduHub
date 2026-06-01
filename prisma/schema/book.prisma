@@ -1,45 +1,59 @@
 model Book {
-    id                 String              @id @default(cuid())
-    title              String
-    image              String?
-    customId           String              @unique
-    year               String
-    tags               String[]
-    chapters           Chapter[]
-    negativeMark       Decimal             @default(1)
-    difficultySettings DifficultySetting[]
-    fullBookExams      FullBookAttempt[]
-    isVisible          ContentStatus       @default(TEST)
-    createdAt          DateTime            @default(now())
-    updatedAt          DateTime            @updatedAt
+    id       String  @id @default(cuid())
+    customId String  @unique
+    title    String
+    image    String?
+    year     String
+
+    totalQuestions    Int @default(0)
+    dailyAttemptLimit Int @default(3)
+
+    isVisible ContentStatus @default(TEST)
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
+
+    chapters Chapter[]
+
+    // leaderboardEntries LeaderboardEntry[]
+
+    @@index([isVisible])
+    @@index([deletedAt])
 }
 
 model Chapter {
-    id           String        @id @default(uuid())
-    title        String
-    order        Int
-    year         String
-    bookId       String
-    tags         String[]
-    book         Book          @relation(fields: [bookId], references: [id])
-    isVisible    ContentStatus @default(TEST)
-    questions    Question[]
-    quizAttempts QuizAttempt[]
-    stats        ChapterStat[]
-    createdAt    DateTime      @default(now())
+    id       String  @id @default(uuid())
+    title    String
+    customId String  @unique
+    image    String?
+    order    Int
+    year     String
+
+    bookId String
+    book   Book   @relation(fields: [bookId], references: [id])
+
+    isVisible ContentStatus @default(TEST)
+    questions Question[]
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
 }
 
-model DifficultySetting {
-    id              String  @id @default(cuid())
-    levelName       String
-    timePerQuestion Int     @default(1) //1 munite
-    negativeMark    Decimal @default(1) // default 1 negative mark
+// model Chapter {
+//     id           String        @id @default(uuid())
+//     title        String
+//     customId     String        @unique
+//     order        Int
+//     year         String
 
-    bookId         String
-    book           Book                  @relation(fields: [bookId], references: [id])
-    questions      Question[]
-    quizAttempts   QuizAttempt[]
-    admissionExams MixBookComboAttempt[]
+//     bookId       String
+//     book         Book          @relation(fields: [bookId], references: [id])
 
-    @@unique([bookId, levelName])
-}
+//     isVisible    ContentStatus @default(TEST)
+//     questions    Question[]
+//     quizAttempts QuizAttempt[]
+//     stats        ChapterStat[]
+//     createdAt    DateTime      @default(now())
+// }

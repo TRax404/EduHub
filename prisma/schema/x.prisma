@@ -1,0 +1,828 @@
+// // ============================================================
+// //  QuizBD — Complete Prisma Schema
+// //  Fixed + Enhanced from user's base schema
+// // ============================================================
+// //
+// //  Key fixes & improvements over the original:
+// //  1.  Option can be TEXT or IMAGE (optionType enum + imageUrl)
+// //  2.  SeenLog now tracks setNumber so Handshake resets cleanly
+// //  3.  ChapterStat enriched with totalAttempts + avgTimeSecs
+// //       so AI weak-zone has time-based signals, not just accuracy
+// //  4.  QuizAttempt stores per-question detail (QuizAttemptItem)
+// //       — needed for AI feedback and admin analytics
+// //  5.  FullBookAttempt + MixBookComboAttempt get per-question
+// //       items too, so reports are meaningful
+// //  6.  WeakZoneAttempt is now a first-class model (was missing)
+// //  7.  Leaderboard, Streak, Bookmark, Note, Notification added
+// //  8.  DailySnapshot for instant admin dashboard
+// //  9.  All hot-path models have @@index
+// //  10. Soft-delete (deletedAt) on content tables
+// //  11. ContentStatus enum kept from original
+// //
+
+// // Kept from original
+// enum ContentStatus {
+//   TEST       // only admin can see
+//   PUBLISHED  // live for students
+//   ARCHIVED   // hidden, kept for history
+// }
+
+// // DIRECT   = question exactly as written
+// // REVERSED = concept flipped for Mid/Pro
+// // NEW      = freshly authored for Mid/Pro only
+// enum QuestionType {
+//   DIRECT
+//   REVERSED
+//   NEW
+// }
+
+// // Each option slot can carry text, an image, or both
+// enum OptionType {
+//   TEXT
+//   IMAGE
+//   TEXT_IMAGE // text label + supporting image
+// }
+
+// enum WeakZoneTag {
+//   CRITICAL   // accuracy < 40%
+//   NEEDS_WORK // 40–70%
+//   STRONG     // > 70%
+// }
+
+// enum SubscriptionTier {
+//   FREE
+//   PREMIUM
+// }
+
+// enum SubscriptionStatus {
+//   ACTIVE
+//   EXPIRED
+//   CANCELLED
+//   TRIAL
+// }
+
+// enum PaymentStatus {
+//   PENDING
+//   SUCCESS
+//   FAILED
+//   REFUNDED
+// }
+
+// enum NotificationType {
+//   STREAK_REMINDER
+//   MOCK_TEST_ALERT
+//   RANK_OVERTAKEN
+//   CHAPTER_UNLOCKED
+//   WEAK_ZONE_READY
+//   STREAK_MILESTONE
+//   SUBSCRIPTION_EXPIRY
+// }
+
+// // ============================================================
+// //  USER
+// // ============================================================
+
+// model User {
+//   id             String    @id @default(cuid())
+//   name           String
+//   email          String?   @unique
+//   phone          String?   @unique
+//   avatarUrl      String?
+//   role           Role      @default(STUDENT)
+//   isActive       Boolean   @default(true)
+
+//   // Denormalised engagement counters — updated in-place, never joined
+//   currentStreak  Int       @default(0)
+//   longestStreak  Int       @default(0)
+//   lastActiveDate DateTime?
+//   totalPoints    Int       @default(0)
+
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+//   deletedAt DateTime?
+
+//   subscription       Subscription?
+//   chapterProgresses  ChapterProgress[]
+//   quizAttempts       QuizAttempt[]
+//   fullBookAttempts   FullBookAttempt[]
+//   comboAttempts      MixBookComboAttempt[]
+//   weakZoneAttempts   WeakZoneAttempt[]
+//   mockAttempts       MockExamAttempt[]
+//   chapterStats       ChapterStat[]
+//   seenLogs           SeenLog[]
+//   bookmarks          Bookmark[]
+//   notes              Note[]
+//   notifications      Notification[]
+//   payments           Payment[]
+//   aiStudyPlans       AiStudyPlan[]
+//   leaderboardEntries LeaderboardEntry[]
+//   streakLogs         StreakLog[]
+
+//   @@index([role])
+//   @@index([totalPoints])
+//   @@index([deletedAt])
+// }
+
+// // ============================================================
+// //  SUBSCRIPTION & PAYMENT
+// // ============================================================
+
+// model Subscription {
+//   id        String             @id @default(cuid())
+//   userId    String             @unique
+//   tier      SubscriptionTier   @default(FREE)
+//   status    SubscriptionStatus @default(ACTIVE)
+//   startedAt DateTime           @default(now())
+//   expiresAt DateTime?
+//   autoRenew Boolean            @default(false)
+//   createdAt DateTime           @default(now())
+//   updatedAt DateTime           @updatedAt
+
+//   user     User      @relation(fields: [userId], references: [id])
+//   payments Payment[]
+
+//   @@index([status])
+//   @@index([expiresAt])
+// }
+
+// model Payment {
+//   id             String        @id @default(cuid())
+//   userId         String
+//   subscriptionId String?
+//   amount         Decimal       @db.Decimal(10, 2)
+//   currency       String        @default("BDT")
+//   gateway        String        // "sslcommerz" | "bkash" | "nagad"
+//   gatewayTxnId   String?       @unique
+//   status         PaymentStatus @default(PENDING)
+//   meta           Json?         // raw gateway response for audit
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   user         User          @relation(fields: [userId], references: [id])
+//   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+//   @@index([userId])
+//   @@index([status])
+//   @@index([createdAt])
+// }
+
+// // ============================================================
+// //  BOOK
+// // ============================================================
+
+// model Book {
+//   id        String        @id @default(cuid())
+//   customId  String        @unique // human-readable slug e.g. "chem-1"
+//   title     String
+//   titleBn   String?
+//   image     String?
+//   subject   String        // "chemistry" | "physics" | "math" | "biology"
+//   year      String
+//   tags      String[]
+//   isVisible ContentStatus @default(TEST)
+
+//   // Per-book exam config (admin sets these)
+//   negativeMark      Decimal @default(0.25) @db.Decimal(4, 2)
+//   fullBookQCount    Int     @default(40)
+//   dailyAttemptLimit Int     @default(3)
+
+//   // Denormalised — increment when a question is published
+//   totalQuestions Int @default(0)
+
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+//   deletedAt DateTime?
+
+//   chapters           Chapter[]
+//   difficultySettings DifficultySetting[]
+//   fullBookAttempts   FullBookAttempt[]
+//   comboBooks         ComboBook[]
+//   leaderboardEntries LeaderboardEntry[]
+
+//   @@index([subject])
+//   @@index([isVisible])
+//   @@index([deletedAt])
+// }
+
+// // ============================================================
+// //  DIFFICULTY SETTING  (per book × level)
+// // ============================================================
+// //  Examples:
+// //    { bookId: "chem-1", levelName: "Easy", timePerQuestion: 60, negativeMark: 0    }
+// //    { bookId: "chem-1", levelName: "Mid",  timePerQuestion: 50, negativeMark: 0.25 }
+// //    { bookId: "chem-1", levelName: "Pro",  timePerQuestion: 40, negativeMark: 0.25 }
+
+// model DifficultySetting {
+//   id              String  @id @default(cuid())
+//   bookId          String
+//   levelName       String  // "Easy" | "Mid" | "Pro"
+//   timePerQuestion Int     @default(60)  // seconds per question
+//   negativeMark    Decimal @default(0)   @db.Decimal(4, 2)
+
+//   book          Book                  @relation(fields: [bookId], references: [id])
+//   questions     Question[]
+//   quizAttempts  QuizAttempt[]
+//   comboAttempts MixBookComboAttempt[]
+//   mockExams     MockExam[]
+
+//   @@unique([bookId, levelName])
+//   @@index([bookId])
+// }
+
+// // ============================================================
+// //  CHAPTER
+// // ============================================================
+
+// model Chapter {
+//   id        String        @id @default(cuid())
+//   bookId    String
+//   title     String
+//   titleBn   String?
+//   order     Int           // 1-based, unique per book
+//   year      String
+//   tags      String[]
+//   isVisible ContentStatus @default(TEST)
+
+//   // Handshake config — questions shown per session
+//   setSize Int @default(20)
+
+//   // Denormalised counter
+//   totalQuestions Int @default(0)
+
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+//   deletedAt DateTime?
+
+//   book              Book              @relation(fields: [bookId], references: [id])
+//   questions         Question[]
+//   quizAttempts      QuizAttempt[]
+//   chapterProgresses ChapterProgress[]
+//   chapterStats      ChapterStat[]
+
+//   @@unique([bookId, order])
+//   @@index([bookId])
+//   @@index([deletedAt])
+// }
+
+// // ============================================================
+// //  QUESTION  — options support TEXT / IMAGE / TEXT_IMAGE
+// // ============================================================
+
+// model Question {
+//   id           String        @id @default(cuid())
+//   chapterId    String
+//   difficultyId String
+//   parentId     String?       // REVERSED questions point to original DIRECT
+
+//   text     String  // question body (always text)
+//   imageUrl String? // optional diagram on the question itself
+
+//   // ── Option A ──────────────────────────────────────────────
+//   optionAType  OptionType @default(TEXT)
+//   optionAText  String?    // filled when type = TEXT or TEXT_IMAGE
+//   optionAImage String?    // filled when type = IMAGE or TEXT_IMAGE
+
+//   // ── Option B ──────────────────────────────────────────────
+//   optionBType  OptionType @default(TEXT)
+//   optionBText  String?
+//   optionBImage String?
+
+//   // ── Option C ──────────────────────────────────────────────
+//   optionCType  OptionType @default(TEXT)
+//   optionCText  String?
+//   optionCImage String?
+
+//   // ── Option D ──────────────────────────────────────────────
+//   optionDType  OptionType @default(TEXT)
+//   optionDText  String?
+//   optionDImage String?
+
+//   correctAnswer String       // "A" | "B" | "C" | "D"
+//   solution      String?      // written explanation
+//   solutionImage String?      // optional diagram for solution
+
+//   questionType QuestionType  @default(DIRECT)
+//   tags         String[]      // ["Dhaka Board 2023", "BUET 2025"]
+
+//   // Denormalised analytics — updated per answer, avoids expensive aggregations
+//   timesAnswered Int     @default(0)
+//   timesCorrect  Int     @default(0)
+//   timesWrong    Int     @default(0)
+//   avgTimeSecs   Decimal @default(0) @db.Decimal(6, 2)
+
+//   isVisible ContentStatus @default(TEST)
+//   createdAt DateTime      @default(now())
+//   updatedAt DateTime      @updatedAt
+//   deletedAt DateTime?
+
+//   chapter    Chapter           @relation(fields: [chapterId], references: [id])
+//   difficulty DifficultySetting @relation(fields: [difficultyId], references: [id])
+//   parent     Question?         @relation("QuestionVariants", fields: [parentId], references: [id])
+//   variants   Question[]        @relation("QuestionVariants")
+
+//   seenLogs  SeenLog[]
+//   bookmarks Bookmark[]
+//   notes     Note[]
+
+//   quizItems     QuizAttemptItem[]
+//   fullBookItems FullBookAttemptItem[]
+//   comboItems    ComboAttemptItem[]
+//   weakZoneItems WeakZoneAttemptItem[]
+//   mockItems     MockAttemptItem[]
+
+//   @@index([chapterId, questionType])
+//   @@index([difficultyId])
+//   @@index([timesAnswered])
+//   @@index([deletedAt])
+// }
+
+// // ============================================================
+// //  SEEN LOG  (Handshake algorithm — tracks seen questions)
+// // ============================================================
+// //  One row per (user × question).
+// //  When ALL questions in a chapter are seen → increment
+// //  ChapterProgress.cycleCount, delete SeenLogs for that
+// //  (userId, chapterId), and start the next cycle.
+
+// model SeenLog {
+//   id         String   @id @default(cuid())
+//   userId     String
+//   questionId String
+//   chapterId  String
+//   setNumber  Int      @default(1) // which Handshake set this was shown in
+//   seenAt     DateTime @default(now())
+
+//   user     User     @relation(fields: [userId], references: [id])
+//   question Question @relation(fields: [questionId], references: [id])
+
+//   @@unique([userId, questionId])
+//   @@index([userId, chapterId])
+// }
+
+// // ============================================================
+// //  CHAPTER PROGRESS  (unlock state per student)
+// // ============================================================
+
+// model ChapterProgress {
+//   id        String @id @default(cuid())
+//   userId    String
+//   chapterId String
+
+//   isUnlocked  Boolean @default(false)
+//   isCompleted Boolean @default(false)
+
+//   // Handshake cycle counter
+//   cycleCount       Int @default(0)
+//   currentSetNumber Int @default(1)
+
+//   // Denormalised performance for quick dashboard reads
+//   totalAttempts Int     @default(0)
+//   bestScore     Decimal @default(0) @db.Decimal(5, 2)
+//   lastScore     Decimal @default(0) @db.Decimal(5, 2)
+//   avgScore      Decimal @default(0) @db.Decimal(5, 2)
+
+//   completedAt DateTime?
+//   createdAt   DateTime  @default(now())
+//   updatedAt   DateTime  @updatedAt
+
+//   user    User    @relation(fields: [userId], references: [id])
+//   chapter Chapter @relation(fields: [chapterId], references: [id])
+
+//   @@unique([userId, chapterId])
+//   @@index([userId])
+// }
+
+// // ============================================================
+// //  CHAPTER STAT  (AI weak-zone engine input)
+// // ============================================================
+// //  One row per (user × chapter) — upserted after every quiz.
+// //  AI reads this to tag CRITICAL / NEEDS_WORK / STRONG.
+
+// model ChapterStat {
+//   id        String @id @default(cuid())
+//   userId    String
+//   chapterId String
+
+//   totalAttempts   Int         @default(0)
+//   accuracy        Float       @default(0)  // 0.0 – 1.0
+//   avgTimeSecs     Float       @default(0)  // avg time per question (slowness = uncertainty)
+//   consecutiveGood Int         @default(0)  // auto-upgrade trigger for AI
+//   weakZoneTag     WeakZoneTag @default(NEEDS_WORK)
+
+//   lastAttemptAt DateTime @default(now())
+//   createdAt     DateTime @default(now())
+//   updatedAt     DateTime @updatedAt
+
+//   user    User    @relation(fields: [userId], references: [id])
+//   chapter Chapter @relation(fields: [chapterId], references: [id])
+
+//   @@unique([userId, chapterId])
+//   @@index([userId, weakZoneTag])
+// }
+
+// // ============================================================
+// //  QUIZ ATTEMPT  (Chapter Handshake quiz)
+// // ============================================================
+
+// model QuizAttempt {
+//   id           String @id @default(cuid())
+//   userId       String
+//   chapterId    String
+//   difficultyId String
+//   setNumber    Int    // which Handshake set
+
+//   correctCount Int
+//   wrongCount   Int
+//   skipCount    Int   @default(0)
+//   score        Float // after negative marking
+//   timeTaken    Int   // total seconds
+
+//   createdAt DateTime @default(now())
+
+//   user       User              @relation(fields: [userId], references: [id])
+//   chapter    Chapter           @relation(fields: [chapterId], references: [id])
+//   difficulty DifficultySetting @relation(fields: [difficultyId], references: [id])
+//   items      QuizAttemptItem[]
+
+//   @@index([userId, chapterId])
+//   @@index([chapterId, score])
+//   @@index([createdAt])
+// }
+
+// model QuizAttemptItem {
+//   id             String   @id @default(cuid())
+//   attemptId      String
+//   questionId     String
+//   selectedAnswer String?  // "A"|"B"|"C"|"D" — null = skipped
+//   isCorrect      Boolean?
+//   timeTakenSecs  Int?
+
+//   // Snapshot of option display order (anti-cheat / audit)
+//   optionOrderShown String[] // e.g. ["C","A","D","B"]
+
+//   attempt  QuizAttempt @relation(fields: [attemptId], references: [id])
+//   question Question    @relation(fields: [questionId], references: [id])
+
+//   @@index([attemptId])
+//   @@index([questionId])
+// }
+
+// // ============================================================
+// //  FULL BOOK ATTEMPT
+// // ============================================================
+
+// model FullBookAttempt {
+//   id     String @id @default(cuid())
+//   userId String
+//   bookId String
+
+//   // Free-form string so books with custom level names still work
+//   difficulty   String
+//   correctCount Int
+//   wrongCount   Int
+//   skipCount    Int   @default(0)
+//   score        Float
+//   timeTaken    Int
+
+//   attemptDate DateTime @default(now())
+
+//   user  User                  @relation(fields: [userId], references: [id])
+//   book  Book                  @relation(fields: [bookId], references: [id])
+//   items FullBookAttemptItem[]
+
+//   @@index([userId, bookId])
+//   @@index([bookId, score])
+//   @@index([attemptDate])
+// }
+
+// model FullBookAttemptItem {
+//   id               String   @id @default(cuid())
+//   attemptId        String
+//   questionId       String
+//   selectedAnswer   String?
+//   isCorrect        Boolean?
+//   timeTakenSecs    Int?
+//   optionOrderShown String[]
+
+//   attempt  FullBookAttempt @relation(fields: [attemptId], references: [id])
+//   question Question        @relation(fields: [questionId], references: [id])
+
+//   @@index([attemptId])
+//   @@index([questionId])
+// }
+
+// // ============================================================
+// //  COMBO ADMISSION EXAM  (2–4 books combined)
+// // ============================================================
+
+// model MixBookComboAttempt {
+//   id           String @id @default(cuid())
+//   userId       String
+//   difficultyId String
+
+//   correctCount Int
+//   wrongCount   Int
+//   skipCount    Int   @default(0)
+//   score        Float
+//   timeTaken    Int
+
+//   createdAt DateTime @default(now())
+
+//   user       User              @relation(fields: [userId], references: [id])
+//   difficulty DifficultySetting @relation(fields: [difficultyId], references: [id])
+//   books      ComboBook[]
+//   items      ComboAttemptItem[]
+
+//   @@index([userId])
+//   @@index([createdAt])
+// }
+
+// // Junction — which books were in a combo attempt
+// model ComboBook {
+//   attemptId     String
+//   bookId        String
+//   questionCount Int    @default(0) // questions drawn from this book
+
+//   attempt MixBookComboAttempt @relation(fields: [attemptId], references: [id])
+//   book    Book                @relation(fields: [bookId], references: [id])
+
+//   @@id([attemptId, bookId])
+// }
+
+// model ComboAttemptItem {
+//   id               String   @id @default(cuid())
+//   attemptId        String
+//   questionId       String
+//   selectedAnswer   String?
+//   isCorrect        Boolean?
+//   timeTakenSecs    Int?
+//   optionOrderShown String[]
+
+//   attempt  MixBookComboAttempt @relation(fields: [attemptId], references: [id])
+//   question Question            @relation(fields: [questionId], references: [id])
+
+//   @@index([attemptId])
+//   @@index([questionId])
+// }
+
+// // ============================================================
+// //  WEAK ZONE EXAM  (AI-generated personalised exam)
+// // ============================================================
+// //  AI reads ChapterStat to pick questions:
+// //    60% from CRITICAL chapters
+// //    30% from NEEDS_WORK chapters
+// //    10% from STRONG chapters  (confidence builder)
+
+// model WeakZoneAttempt {
+//   id     String @id @default(cuid())
+//   userId String
+//   bookId String // which book this weak-zone covers
+
+//   // Snapshot of AI weight config at generation time
+//   criticalPct  Int @default(60)
+//   needsWorkPct Int @default(30)
+//   strongPct    Int @default(10)
+
+//   correctCount Int
+//   wrongCount   Int
+//   skipCount    Int   @default(0)
+//   score        Float
+//   timeTaken    Int
+
+//   createdAt DateTime @default(now())
+
+//   user  User                  @relation(fields: [userId], references: [id])
+//   items WeakZoneAttemptItem[]
+
+//   @@index([userId, bookId])
+//   @@index([createdAt])
+// }
+
+// model WeakZoneAttemptItem {
+//   id               String   @id @default(cuid())
+//   attemptId        String
+//   questionId       String
+//   selectedAnswer   String?
+//   isCorrect        Boolean?
+//   timeTakenSecs    Int?
+//   optionOrderShown String[]
+
+//   attempt  WeakZoneAttempt @relation(fields: [attemptId], references: [id])
+//   question Question        @relation(fields: [questionId], references: [id])
+
+//   @@index([attemptId])
+//   @@index([questionId])
+// }
+
+// // ============================================================
+// //  MOCK LIVE EXAM  (admin-scheduled real-time test)
+// // ============================================================
+
+// model MockExam {
+//   id            String @id @default(cuid())
+//   title         String
+//   difficultyId  String
+//   questionCount Int    @default(40)
+//   timeLimitSecs Int
+
+//   scheduledAt DateTime
+//   endsAt      DateTime
+//   isPublished Boolean  @default(false)
+
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+//   deletedAt DateTime?
+
+//   difficulty DifficultySetting @relation(fields: [difficultyId], references: [id])
+//   attempts   MockExamAttempt[]
+
+//   @@index([scheduledAt])
+//   @@index([isPublished])
+// }
+
+// model MockExamAttempt {
+//   id     String @id @default(cuid())
+//   userId String
+//   examId String
+
+//   correctCount Int
+//   wrongCount   Int
+//   skipCount    Int   @default(0)
+//   score        Float
+//   timeTaken    Int
+//   rank         Int?  // filled after exam window closes
+
+//   createdAt DateTime @default(now())
+
+//   user  User             @relation(fields: [userId], references: [id])
+//   exam  MockExam         @relation(fields: [examId], references: [id])
+//   items MockAttemptItem[]
+
+//   @@index([userId, examId])
+//   @@index([examId, score])
+// }
+
+// model MockAttemptItem {
+//   id               String   @id @default(cuid())
+//   attemptId        String
+//   questionId       String
+//   selectedAnswer   String?
+//   isCorrect        Boolean?
+//   timeTakenSecs    Int?
+//   optionOrderShown String[]
+
+//   attempt  MockExamAttempt @relation(fields: [attemptId], references: [id])
+//   question Question        @relation(fields: [questionId], references: [id])
+
+//   @@index([attemptId])
+//   @@index([questionId])
+// }
+
+// // ============================================================
+// //  AI STUDY PLAN
+// // ============================================================
+
+// model AiStudyPlan {
+//   id          String   @id @default(cuid())
+//   userId      String
+//   examDate    DateTime
+//   generatedAt DateTime @default(now())
+//   isActive    Boolean  @default(true)
+
+//   // Full JSON plan shape:
+//   // { weeks: [{ weekNumber, tasks: [{ chapterId, type, daysTarget }] }] }
+//   planJson Json
+
+//   user User @relation(fields: [userId], references: [id])
+
+//   @@index([userId, isActive])
+// }
+
+// // ============================================================
+// //  LEADERBOARD  (materialised rows, rebuilt by background job)
+// // ============================================================
+// //  period format:  "weekly_2024_W42" | "monthly_2024_10" | "all_time"
+
+// model LeaderboardEntry {
+//   id       String  @id @default(cuid())
+//   userId   String
+//   bookId   String? // null = global leaderboard
+//   period   String
+//   rank     Int
+//   score    Int
+//   accuracy Decimal @default(0) @db.Decimal(5, 2)
+//   streak   Int     @default(0)
+
+//   updatedAt DateTime @updatedAt
+
+//   user User  @relation(fields: [userId], references: [id])
+//   book Book? @relation(fields: [bookId], references: [id])
+
+//   @@unique([userId, bookId, period])
+//   @@index([period, rank])
+//   @@index([bookId, period, rank])
+// }
+
+// // ============================================================
+// //  STREAK LOG
+// // ============================================================
+
+// model StreakLog {
+//   id     String   @id @default(cuid())
+//   userId String
+//   date   DateTime @db.Date
+//   points Int      @default(10)
+
+//   user User @relation(fields: [userId], references: [id])
+
+//   @@unique([userId, date])
+//   @@index([userId, date])
+// }
+
+// // ============================================================
+// //  BOOKMARK & NOTE
+// // ============================================================
+
+// model Bookmark {
+//   id         String   @id @default(cuid())
+//   userId     String
+//   questionId String
+//   createdAt  DateTime @default(now())
+
+//   user     User     @relation(fields: [userId], references: [id])
+//   question Question @relation(fields: [questionId], references: [id])
+
+//   @@unique([userId, questionId])
+//   @@index([userId])
+// }
+
+// model Note {
+//   id         String   @id @default(cuid())
+//   userId     String
+//   questionId String
+//   body       String
+//   createdAt  DateTime @default(now())
+//   updatedAt  DateTime @updatedAt
+
+//   user     User     @relation(fields: [userId], references: [id])
+//   question Question @relation(fields: [questionId], references: [id])
+
+//   @@unique([userId, questionId])
+//   @@index([userId])
+// }
+
+// // ============================================================
+// //  NOTIFICATION
+// // ============================================================
+
+// model Notification {
+//   id        String           @id @default(cuid())
+//   userId    String
+//   type      NotificationType
+//   title     String
+//   body      String
+//   isRead    Boolean          @default(false)
+//   meta      Json?            // { "examId": "...", "rank": 47 }
+//   createdAt DateTime         @default(now())
+
+//   user User @relation(fields: [userId], references: [id])
+
+//   @@index([userId, isRead])
+//   @@index([userId, createdAt])
+// }
+
+// // ============================================================
+// //  ADMIN ANALYTICS SNAPSHOTS  (pre-aggregated nightly)
+// // ============================================================
+
+// // Platform-wide daily stats — admin dashboard reads this, never raw tables
+// model DailyPlatformSnapshot {
+//   id              String   @id @default(cuid())
+//   date            DateTime @db.Date @unique
+//   dau             Int      @default(0) // daily active users
+//   newSignups      Int      @default(0)
+//   quizzesTaken    Int      @default(0)
+//   examsTaken      Int      @default(0)
+//   subscriptionNew Int      @default(0)
+//   subscriptionEnd Int      @default(0)
+//   revenueTotal    Decimal  @default(0) @db.Decimal(12, 2)
+//   createdAt       DateTime @default(now())
+
+//   @@index([date])
+// }
+
+// // Hardest questions snapshot — refreshed nightly by a cron job
+// model QuestionDifficultySnapshot {
+//   id            String   @id @default(cuid())
+//   questionId    String   @unique
+//   chapterId     String
+//   bookId        String
+//   errorRate     Decimal  @db.Decimal(5, 2) // timesWrong / timesAnswered
+//   totalAnswered Int      @default(0)
+//   avgTimeSecs   Decimal  @default(0) @db.Decimal(6, 2)
+//   snapshotDate  DateTime @db.Date
+
+//   @@index([bookId, errorRate])
+//   @@index([snapshotDate])
+// }

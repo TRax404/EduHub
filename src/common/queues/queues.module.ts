@@ -82,6 +82,7 @@ import { MailModule } from '../mail/mail.module';
       },
     }),
 
+
     // ── Dead-letter queue ─────────────────────────────────────────────────────
     // Receives jobs that exhausted all retries in the auth queue.
     // Workers here can alert, store to S3, or trigger Slack notifications.
